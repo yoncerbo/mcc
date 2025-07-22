@@ -1,0 +1,2 @@
+# mcc
+Minimal C compiler
