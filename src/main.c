@@ -7,9 +7,11 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "ast.h"
 #include "common.h"
 #include "tokenizer.c"
 #include "tokens.h"
+#include "parser.c"
 
 int main(int argc, const char *argv[]) {
   assert(argc == 2);
@@ -25,9 +27,15 @@ int main(int argc, const char *argv[]) {
   char *file = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
   assert(file != MAP_FAILED);
 
+  printf("\nTokenizing:\n");
   Token *tokens = malloc(sizeof(*tokens) * MAX_TOKENS);
   tokenize(file, tokens);
   print_tokens(tokens);
+
+  printf("\nParsing:\n");
+  AstExpr *ast = malloc(sizeof(*ast) * MAX_AST_SIZE);
+  parse(file, tokens, ast);
+  print_ast(ast);
 
   return 0;
 }

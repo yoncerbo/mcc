@@ -1,12 +1,18 @@
 #ifndef INCLUDE_COMMON
 #define INCLUDE_COMMON
 
+#include "bits/floatn-common.h"
 #include <stdint.h>
 
 typedef struct {
   const char *ptr;
   uint32_t len;
 } Str;
+
+typedef struct {
+  uint32_t start;
+  uint32_t len;
+} Span;
 
 #define STRINGIFY_INNER(x) #x
 #define STRINGIFY(x) STRINGIFY_INNER(x) 
