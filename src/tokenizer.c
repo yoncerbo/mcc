@@ -61,11 +61,21 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
     if (tt) {
       ch++;
       assert(tokens_len < MAX_TOKENS);
-      tokens_out[tokens_len++] = (Token) { tt, ch - token_start };
+      tokens_out[tokens_len++] = (Token) { tt, ch - token_start, token_start - source };
       continue;
     }
 
     // strings
+
+    // negative numbers, different literals
+    if (*ch >= '1' && *ch <= '9') {
+      ch++;
+      while (IS_NUMERIC(*ch)) ch++;
+      assert(tokens_len < MAX_TOKENS);
+      tokens_out[tokens_len++] = (Token){ TOK_DECIMAL, ch - token_start, token_start - source };
+      continue;
+    }
+
     if (*ch == '_' || IS_ALPHA(*ch)) {
       ch++;
       while (*ch == '_' || IS_ALPHA(*ch) || IS_NUMERIC(*ch)) ch++;
@@ -79,7 +89,7 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
         break;
       }
       assert(tokens_len < MAX_TOKENS);
-      tokens_out[tokens_len++] = (Token){ tt, len };
+      tokens_out[tokens_len++] = (Token){ tt, len, token_start - source };
       continue;
     }
   }

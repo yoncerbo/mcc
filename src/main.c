@@ -26,13 +26,11 @@ int main(int argc, const char *argv[]) {
   assert(file != MAP_FAILED);
 
   Token *tokens = malloc(sizeof(*tokens) * MAX_TOKENS);
-  tokenize("(return;)", tokens);
+  tokenize("(return 10;)", tokens);
 
   Token *tok = tokens;
-  uint32_t start = 0;
   while (tok->type) {
-    printf("type=%s, start=%d, len=%d\n", TOKEN_TYPE_STR[tok->type], start, tok->len);
-    start += tok->len;
+    printf("type=%s, start=%d, len=%d\n", TOKEN_TYPE_STR[tok->type], tok->start, tok->len);
     tok++;
   }
 

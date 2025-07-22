@@ -41,6 +41,7 @@ const char *TOKEN_TYPE_STR[TOK_COUNT] = {
 typedef struct {
   TokenType type;
   uint16_t len;
+  uint32_t start;
 } Token;
 
 void tokenize(const char *source, Token tokens_out[MAX_TOKENS]);
