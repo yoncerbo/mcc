@@ -27,9 +27,10 @@ int main(int argc, const char *argv[]) {
   char *file = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
   assert(file != MAP_FAILED);
 
+  DEBUGS(TOKEN_TYPE_STR[TOK_PLUS]);
   printf("\nTokenizing:\n");
   Token *tokens = malloc(sizeof(*tokens) * MAX_TOKENS);
-  tokenize(file, tokens);
+  tokenize("-=", tokens);
   print_tokens(tokens);
 
   printf("\nParsing:\n");

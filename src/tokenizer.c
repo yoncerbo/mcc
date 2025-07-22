@@ -8,15 +8,37 @@
 #define IS_ALPHA(ch) \
     (((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z'))
 
-TokenType ch2token[128 - 32] = {
-  ['{' - 32] = TOK_LBRACE,
-  ['}' - 32] = TOK_RBRACE,
-  ['(' - 32] = TOK_LPAREN,
-  [')' - 32] = TOK_RPAREN,
-  [';' - 32] = TOK_SEMICOLON,
-  ['-' - 32] = TOK_MINUS,
-  ['+' - 32] = TOK_PLUS,
-  // rest is TOK_NONE
+TokenType ch2token[128] = {
+  ['-'] = TOK_MINUS, ['+'] = TOK_PLUS, ['<'] = TOK_LT,
+  ['>'] = TOK_GT, ['='] = TOK_EQ, ['!'] = TOK_NOT,
+  ['&'] = TOK_AND, ['*'] = TOK_STAR, ['/'] = TOK_SLASH,
+  ['%'] = TOK_PERCENT, ['^'] = TOK_HAT, ['|'] = TOK_OR,
+
+  ['.'] = TOK_DOT, ['~'] = TOK_TILDA, [':'] = TOK_COLON,
+  [';'] = TOK_SEMICOLON, [','] = TOK_COMMA, ['('] = TOK_LPAREN,
+  [')'] = TOK_RPAREN, ['{'] = TOK_LBRACE, ['}'] = TOK_RBRACE,
+  ['['] = TOK_LSQUARE, [']'] = TOK_RSQUARE, ['?'] = TOK_QUESTION,
+};
+
+typedef struct {
+  char ch;
+  TokenType type;
+} OptionTokenType;
+
+OptionTokenType multiple_tokens[TOK_ARROW][2] = {
+  [TOK_MINUS]   = {{ '>', TOK_ARROW },      { '=', TOK_MINUS_EQ }},
+  [TOK_PLUS]    = {{ '+', TOK_DPLUS },      { '=', TOK_PLUS_EQ }},
+  [TOK_LT]      = {{ '<', TOK_LSFT },       { '=', TOK_LE }},
+  [TOK_GT]      = {{ '>', TOK_RSFT },       { '=', TOK_GE }},
+  [TOK_EQ]      = {{ '=', TOK_DEQ },        {0}},
+  [TOK_NOT]     = {{ '=', TOK_NEQ },        {0}},
+  [TOK_AND]     = {{ '&', TOK_DAND },       { '=', TOK_AND_EQ }},
+  [TOK_STAR]    = {{ '=', TOK_STAR_EQ },    {0}},
+  [TOK_SLASH]   = {{ '=', TOK_SLASH_EQ },   {0}},
+  [TOK_PERCENT] = {{ '=', TOK_PERCENT_EQ }, {0}},
+  [TOK_HAT]     = {{ '=', TOK_DPLUS },      {0}},
+  [TOK_OR]      = {{ '|', TOK_DOR },        { '=', TOK_DEQ }},
+
 };
 
 // A very simple solution for now 
@@ -59,13 +81,33 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
       continue;
     }
 
-    TokenType tt = ch2token[*ch - 32];
-    // handle two character tokens
+    TokenType tt = ch2token[*ch];
 
     if (tt) {
+      uint32_t len = 1;
+      // TODO: How to make it better?
+      if (tt < TOK_ARROW) {
+        if (ch[1] && ch[1] == multiple_tokens[tt][0].ch) {
+          tt = multiple_tokens[tt][0].type;
+          len = 2;
+        } else if (ch[1] && ch[1] == multiple_tokens[tt][1].ch) {
+          tt = multiple_tokens[tt][1].type;
+          len = 2;
+        }
+      }
+      if (tt == TOK_MINUS && ch[1] == '-') {
+        tt = TOK_DMINUS;
+        len = 2;
+      } else if (tt == TOK_LSFT && ch[2] == '=') {
+        tt = TOK_LSFT_EQ;
+        len = 3;
+      } else if (tt == TOK_RSFT && ch[2] == '=') {
+        tt = TOK_RSF_EQ;
+        len = 3;
+      }
       assert(tokens_len < MAX_TOKENS);
-      tokens_out[tokens_len++] = (Token) { tt, 1, ch - source };
-      ch++;
+      tokens_out[tokens_len++] = (Token){ tt, len, ch - source };
+      ch += len;
       continue;
     }
 
