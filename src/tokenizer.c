@@ -19,16 +19,18 @@ TokenType ch2token[128 - 32] = {
   // rest is TOK_NONE
 };
 
-typedef struct {
-  Str str;
-  TokenType type;
-} Keyword;
-
 // A very simple solution for now 
-Keyword keywords[] = {
-  { STR("int"), TOK_INT },
-  { STR("return"), TOK_RETURN },
-  { STR("void"), TOK_VOID },
+// https://rgambord.github.io/c99-doc/sections/8/1/2/index.html
+// !IMPORTANT has to be the same order is in TokenType enum
+Str keywords[] = {
+  STR("auto"), STR("enum"), STR("restrict"), STR("unsigned"), STR("break"),
+  STR("extern"), STR("return"), STR("void"), STR("case"), STR("float"),
+  STR("short"), STR("volatile"), STR("char"), STR("for"), STR("signed"),
+  STR("while"), STR("const"), STR("goto"), STR("sizeof"), STR("_Bool"),
+  STR("continue"), STR("if"), STR("static"), STR("_Complex"), STR("deault"),
+  STR("inline"), STR("struct"), STR("_Imaginary"), STR("do"), STR("int"),
+  STR("switch"), STR("double"), STR("long"), STR("typedef"), STR("else"),
+  STR("register"), STR("union"),
 };
 const uint32_t KEYWORD_COUNT = sizeof(keywords) / sizeof(*keywords);
 
@@ -84,9 +86,9 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
       uint32_t len = ch - start;
       TokenType tt = TOK_IDENT;
       for (uint32_t i = 0; i < KEYWORD_COUNT; ++i) {
-        if (keywords[i].str.len != len) continue;
-        if (strncmp(keywords[i].str.ptr, start, len)) continue;
-        tt = keywords[i].type;
+        if (keywords[i].len != len) continue;
+        if (strncmp(keywords[i].ptr, start, len)) continue;
+        tt = TOK_AUTO + i;
         break;
       }
       assert(tokens_len < MAX_TOKENS);
@@ -96,9 +98,9 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
   }
 }
 
-void print_tokens(Token *tokens) {
+void print_tokens(const Token *tokens) {
   while (tokens->type) {
-    printf("(Token){ %s, %d, %d }\n", TOKEN_TYPE_STR[tokens->type], tokens->len, tokens->start);
+    printf("% 3d:%02d %s\n", tokens->start, tokens->len, TOKEN_TYPE_STR[tokens->type]);
     tokens++;
   }
 }
