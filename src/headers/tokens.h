@@ -20,6 +20,8 @@ typedef enum {
   TOK_LBRACE,
   TOK_RBRACE,
   TOK_SEMICOLON,
+  TOK_MINUS,
+  TOK_PLUS,
 
   TOK_COUNT,
 } TokenType;
@@ -36,6 +38,8 @@ const char *TOKEN_TYPE_STR[TOK_COUNT] = {
   "TOK_LBRACE",
   "TOK_RBRACE",
   "TOK_SEMICOLON",
+  "TOK_MINUS",
+  "TOK_PLUS",
 };
 
 typedef struct {
@@ -45,6 +49,7 @@ typedef struct {
 } Token;
 
 void tokenize(const char *source, Token tokens_out[MAX_TOKENS]);
+void print_tokens(Token *tokens);
 
 #endif
 

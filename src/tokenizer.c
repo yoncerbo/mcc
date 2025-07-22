@@ -14,6 +14,8 @@ TokenType ch2token[128 - 32] = {
   ['(' - 32] = TOK_LPAREN,
   [')' - 32] = TOK_RPAREN,
   [';' - 32] = TOK_SEMICOLON,
+  ['-' - 32] = TOK_MINUS,
+  ['+' - 32] = TOK_PLUS,
   // rest is TOK_NONE
 };
 
@@ -55,43 +57,48 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
       continue;
     }
 
-    const char *token_start = ch;
     TokenType tt = ch2token[*ch - 32];
+    // handle two character tokens
 
     if (tt) {
-      ch++;
       assert(tokens_len < MAX_TOKENS);
-      tokens_out[tokens_len++] = (Token) { tt, ch - token_start, token_start - source };
+      tokens_out[tokens_len++] = (Token) { tt, 1, ch - source };
+      ch++;
       continue;
     }
 
     // strings
-
     // negative numbers, different literals
-    if (*ch >= '1' && *ch <= '9') {
-      ch++;
+    if (IS_NUMERIC(*ch)) {
+      const char *start = ch++;
       while (IS_NUMERIC(*ch)) ch++;
       assert(tokens_len < MAX_TOKENS);
-      tokens_out[tokens_len++] = (Token){ TOK_DECIMAL, ch - token_start, token_start - source };
+      tokens_out[tokens_len++] = (Token){ TOK_DECIMAL, ch - start, start - source };
       continue;
     }
 
     if (*ch == '_' || IS_ALPHA(*ch)) {
-      ch++;
+      const char *start = ch++;
       while (*ch == '_' || IS_ALPHA(*ch) || IS_NUMERIC(*ch)) ch++;
 
-      uint32_t len = ch - token_start;
+      uint32_t len = ch - start;
       TokenType tt = TOK_IDENT;
       for (uint32_t i = 0; i < KEYWORD_COUNT; ++i) {
         if (keywords[i].str.len != len) continue;
-        if (strncmp(keywords[i].str.ptr, token_start, len)) continue;
+        if (strncmp(keywords[i].str.ptr, start, len)) continue;
         tt = keywords[i].type;
         break;
       }
       assert(tokens_len < MAX_TOKENS);
-      tokens_out[tokens_len++] = (Token){ tt, len, token_start - source };
+      tokens_out[tokens_len++] = (Token){ tt, len, start - source };
       continue;
     }
   }
 }
 
+void print_tokens(Token *tokens) {
+  while (tokens->type) {
+    printf("(Token){ %s, %d, %d }\n", TOKEN_TYPE_STR[tokens->type], tokens->len, tokens->start);
+    tokens++;
+  }
+}

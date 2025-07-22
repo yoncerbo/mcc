@@ -26,13 +26,8 @@ int main(int argc, const char *argv[]) {
   assert(file != MAP_FAILED);
 
   Token *tokens = malloc(sizeof(*tokens) * MAX_TOKENS);
-  tokenize("(return 10;)", tokens);
-
-  Token *tok = tokens;
-  while (tok->type) {
-    printf("type=%s, start=%d, len=%d\n", TOKEN_TYPE_STR[tok->type], tok->start, tok->len);
-    tok++;
-  }
+  tokenize(file, tokens);
+  print_tokens(tokens);
 
   return 0;
 }
