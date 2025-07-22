@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "common.h"
 #include "tokenizer.c"
 #include "tokens.h"
 
@@ -25,7 +26,7 @@ int main(int argc, const char *argv[]) {
   assert(file != MAP_FAILED);
 
   Token *tokens = malloc(sizeof(*tokens) * MAX_TOKENS);
-  tokenize("(;)", tokens);
+  tokenize("(return;)", tokens);
 
   Token *tok = tokens;
   uint32_t start = 0;
