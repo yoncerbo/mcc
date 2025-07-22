@@ -9,6 +9,7 @@
   in {
     devShell."${system}" = pkgs.mkShell rec {
       packages = with pkgs; [
+        linuxHeaders
         bear
         gnumake
       ];
