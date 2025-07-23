@@ -31,7 +31,7 @@ uint8_t generate_inst(Generator *g) {
   switch (inst.type) {
     case INST_INT:
       uint8_t reg = alloc_register(g);
-      printf("  movq %s, %d\n", REGISTERS[reg], inst.a | (inst.b << 16));
+      printf("  mov %s, %d\n", REGISTERS[reg], inst.a | (inst.b << 16));
       g->inst2reg[g->pos] = reg;
       g->pos++;
       break;
@@ -39,7 +39,7 @@ uint8_t generate_inst(Generator *g) {
       uint8_t left = g->inst2reg[inst.a];
       uint8_t right = g->inst2reg[inst.b];
       free_register(g, right);
-      printf("  addq %s, %s\n", REGISTERS[left], REGISTERS[right]);
+      printf("  add %s, %s\n", REGISTERS[left], REGISTERS[right]);
       g->inst2reg[g->pos] = left;
       g->pos++;
     default:
@@ -53,7 +53,7 @@ void generate_assembly(const Inst *insts) {
     .insts = insts,
   };
   for (int i = 0; i < REGISTER_COUNT; ++i) g.free_registers[i] = i;
-  printf("main:\n");
+  printf(".intel_syntax noprefix\n.global main\n\nmain:\n");
   for (int i = 0; insts[i].type; ++i) {
     generate_inst(&g);
   }

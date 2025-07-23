@@ -14,7 +14,7 @@
 #include "tokens.h"
 #include "parser.c"
 #include "codegen.c"
-#include "assembly.c"
+// #include "assembly.c"
 
 int main(int argc, const char *argv[]) {
   assert(argc == 2);
@@ -46,8 +46,8 @@ int main(int argc, const char *argv[]) {
   codegen(ast, index, insts);
   print_insts(insts);
 
-  printf("\nGenerating assembly:\n");
-  generate_assembly(insts);
+  // printf("\nGenerating assembly:\n");
+  // generate_assembly(insts);
 
   return 0;
 }
