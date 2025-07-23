@@ -3,6 +3,26 @@
 #include <assert.h>
 #include <stdint.h>
 
+// TODO: reorder the tokens in the definition
+AstExprType tok2operation[TOK_DOT] = {
+  [TOK_STAR] = AST_MUL, [TOK_SLASH] = AST_DIV, [TOK_PERCENT] = AST_MUL,
+  [TOK_PLUS] = AST_ADD, [TOK_MINUS] = AST_SUB, [TOK_LSFT] = AST_LSFT,
+  [TOK_RSFT] = AST_RSFT, [TOK_LT] = AST_LT, [TOK_LE] = AST_LE,
+  [TOK_GT] = AST_GT, [TOK_GE] = AST_GE, [TOK_EQ] = AST_EQ,
+  [TOK_NEQ] = AST_NE, [TOK_AND] = AST_BAND, [TOK_HAT] = AST_BXOR,
+  [TOK_OR] = AST_BOR, [TOK_DAND] = AST_LAND, [TOK_DOR] = AST_LOR,
+};
+
+// TODO: reorder the ast types and limite the size
+uint8_t op2precedence[AST_COUNT] = {
+  [AST_MUL] = 10, [AST_DIV] = 10, [AST_MOD] = 10,
+  [AST_ADD] = 9, [AST_SUB] = 9, [AST_LSFT] = 8,
+  [AST_RSFT] = 8, [AST_LT] = 7, [AST_LE] = 7,
+  [AST_GT] = 7, [AST_GE] = 7, [AST_EQ] = 6,
+  [AST_NE] = 6, [AST_BAND] = 5, [AST_BXOR] = 4,
+  [AST_BOR] = 3, [AST_LAND] = 2, [AST_LOR] = 1,
+};
+
 typedef struct {
   const char *source;
   const Token *tokens;
@@ -96,36 +116,26 @@ uint16_t Parser_parse_unary(Parser *p) {
   }
 }
 
-uint16_t Parser_parse_multiplicative(Parser *p) {
+uint16_t Parser_parse_binary(Parser *p, uint8_t precedence) {
   uint16_t right;
   uint16_t left = Parser_parse_unary(p);
   uint16_t left_last_child = 0;
   while (1) {
-    AstExprType type;
     Token tok = p->tokens[p->pos];
-    switch (tok.type) {
-      case TOK_STAR:
-        type = AST_MUL;
-        break;
-      case TOK_SLASH:
-        type = AST_DIV;
-        break;
-      case TOK_PERCENT:
-        type = AST_MOD;
-        break;
-      default:
-        return left;
-    }
+    AstExprType op = tok2operation[tok.type];
+    if (!op) break;
+    uint8_t new_precedence = op2precedence[op];
+    if (new_precedence < precedence) break;
     p->pos++;
-    right = Parser_parse_unary(p);
-    if (p->ast_out[left].type == type) {
+    right = Parser_parse_binary(p, new_precedence);
+    if (p->ast_out[left].type == op) {
       p->ast_out[left_last_child].next_sibling = right;
       break;
     }
     left_last_child = right;
     p->ast_out[left].next_sibling = right;
     left =  Parser_create_expr(p, (AstExpr){
-      .type = type,
+      .type = op,
       .start = p->ast_out[left].start,
       .value.first_child = left,
     });
@@ -133,41 +143,8 @@ uint16_t Parser_parse_multiplicative(Parser *p) {
   return left;
 }
 
-uint16_t Parser_parse_additive(Parser *p) {
-  uint16_t right;
-  uint16_t left = Parser_parse_multiplicative(p);
-  uint16_t left_last_child = 0;
-  while (1) {
-    AstExprType type;
-    Token tok = p->tokens[p->pos];
-    switch (tok.type) {
-      case TOK_PLUS:
-        type = AST_ADD;
-        break;
-      case TOK_MINUS:
-        type = AST_SUB;
-        break;
-      default:
-        return left;
-    }
-    p->pos++;
-    right = Parser_parse_multiplicative(p);
-    if (p->ast_out[left].type == type) {
-      p->ast_out[left_last_child].next_sibling = right;
-      break;
-    }
-    left_last_child = right;
-    p->ast_out[left].next_sibling = right;
-    left =  Parser_create_expr(p, (AstExpr){
-      .type = type,
-      .start = p->ast_out[left].start,
-      .value.first_child = left,
-    });
-  }
-  return left;
-}
 uint16_t Parser_parse_expression(Parser *p) {
-  return Parser_parse_additive(p);
+  return Parser_parse_binary(p, 0);
 }
 
 uint16_t parse(const char *source, const Token *tokens, AstExpr *ast_out) {
