@@ -30,13 +30,13 @@ int main(int argc, const char *argv[]) {
   DEBUGS(TOKEN_TYPE_STR[TOK_PLUS]);
   printf("\nTokenizing:\n");
   Token *tokens = malloc(sizeof(*tokens) * MAX_TOKENS);
-  tokenize("-=", tokens);
+  tokenize(file, tokens);
   print_tokens(tokens);
 
   printf("\nParsing:\n");
   AstExpr *ast = malloc(sizeof(*ast) * MAX_AST_SIZE);
-  parse(file, tokens, ast);
-  print_ast(ast);
+  uint16_t index = parse(file, tokens, ast);
+  print_ast(file, ast, index, 0);
 
   return 0;
 }
