@@ -8,9 +8,15 @@ AstExprType tok2operation[TOK_DOT] = {
   [TOK_STAR] = AST_MUL, [TOK_SLASH] = AST_DIV, [TOK_PERCENT] = AST_MUL,
   [TOK_PLUS] = AST_ADD, [TOK_MINUS] = AST_SUB, [TOK_LSFT] = AST_LSFT,
   [TOK_RSFT] = AST_RSFT, [TOK_LT] = AST_LT, [TOK_LE] = AST_LE,
-  [TOK_GT] = AST_GT, [TOK_GE] = AST_GE, [TOK_EQ] = AST_EQ,
+  [TOK_GT] = AST_GT, [TOK_GE] = AST_GE, [TOK_DEQ] = AST_EQ,
   [TOK_NEQ] = AST_NE, [TOK_AND] = AST_BAND, [TOK_HAT] = AST_BXOR,
   [TOK_OR] = AST_BOR, [TOK_DAND] = AST_LAND, [TOK_DOR] = AST_LOR,
+
+
+  [TOK_EQ] = AST_ASS, [TOK_STAR_EQ] = AST_ASS_MUL, [TOK_SLASH_EQ] = AST_ASS_DIV,
+  [TOK_PERCENT_EQ] = AST_ASS_MOD, [TOK_PLUS_EQ] = AST_ASS_ADD, [TOK_MINUS_EQ] = AST_ASS_SUB,
+  [TOK_LSFT_EQ] = AST_ASS_LSFT, [TOK_RSF_EQ] = AST_ASS_RSFT, [TOK_AND_EQ] = AST_ASS_AND,
+  [TOK_HAT_EQ] = AST_ASS_XOR, [TOK_OR_EQ] = AST_ASS_OR,
 };
 
 // TODO: reorder the ast types and limite the size
@@ -116,9 +122,8 @@ uint16_t Parser_parse_unary(Parser *p) {
   }
 }
 
-uint16_t Parser_parse_binary(Parser *p, uint8_t precedence) {
+uint16_t Parser_parse_binary(Parser *p, uint8_t precedence, uint16_t left) {
   uint16_t right;
-  uint16_t left = Parser_parse_unary(p);
   // uint16_t left_last_child = 0;
   while (1) {
     Token tok = p->tokens[p->pos];
@@ -127,7 +132,7 @@ uint16_t Parser_parse_binary(Parser *p, uint8_t precedence) {
     uint8_t new_precedence = op2precedence[op];
     if (new_precedence < precedence) break;
     p->pos++;
-    right = Parser_parse_binary(p, new_precedence);
+    right = Parser_parse_binary(p, new_precedence, Parser_parse_unary(p));
     // Fow now don't combine
     // if (p->ast_out[left].type == op) {
     //   p->ast_out[left_last_child].next_sibling = right;
@@ -144,8 +149,32 @@ uint16_t Parser_parse_binary(Parser *p, uint8_t precedence) {
   return left;
 }
 
+uint16_t Parser_parse_assignment(Parser *p) {
+  uint16_t right;
+  uint16_t left = Parser_parse_unary(p);
+  Token tok = p->tokens[p->pos];
+  AstExprType op = tok2operation[tok.type];
+  if (op < AST_ASS) return Parser_parse_binary(p, 0, left);
+  p->pos++;
+  right = Parser_parse_assignment(p);
+  p->ast_out[left].next_sibling = right;
+  return Parser_create_expr(p, (AstExpr){
+    .type = op,
+    .value.first_child = left,
+    .start = p->ast_out[left].start,
+  });
+}
+
 uint16_t Parser_parse_expression(Parser *p) {
-  return Parser_parse_binary(p, 0);
+  uint16_t first = Parser_parse_assignment(p);
+  uint16_t last = first;
+  while (p->tokens[p->pos].type == TOK_COMMA) {
+    p->pos++;
+    uint16_t next = Parser_parse_assignment(p);
+    p->ast_out[last].next_sibling = next;
+    last = next;
+  }
+  return first;
 }
 
 uint16_t parse(const char *source, const Token *tokens, AstExpr *ast_out) {

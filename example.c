@@ -1,4 +1,4 @@
 
 int main(void) {
-  return 7 + 2;
+  return x += 10, x++;
 }

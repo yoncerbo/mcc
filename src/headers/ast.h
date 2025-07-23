@@ -36,6 +36,18 @@ typedef enum {
   AST_LAND,
   AST_LOR,
 
+  AST_ASS,
+  AST_ASS_MUL,
+  AST_ASS_DIV,
+  AST_ASS_MOD,
+  AST_ASS_ADD,
+  AST_ASS_SUB,
+  AST_ASS_LSFT,
+  AST_ASS_RSFT,
+  AST_ASS_AND,
+  AST_ASS_XOR,
+  AST_ASS_OR,
+
   AST_COUNT,
 } AstExprType;
 
@@ -67,6 +79,17 @@ const char *AST_TYPE_STR[AST_COUNT] = {
   "AST_BOR",
   "AST_LAND",
   "AST_LOR",
+  "AST_ASS",
+  "AST_ASS_MUL",
+  "AST_ASS_DIV",
+  "AST_ASS_MOD",
+  "AST_ASS_ADD",
+  "AST_ASS_SUB",
+  "AST_ASS_LSFT",
+  "AST_ASS_RSFT",
+  "AST_ASS_AND",
+  "AST_ASS_XOR",
+  "AST_ASS_OR",
 };
 
 // TODO: consider doing variable length instead
