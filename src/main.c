@@ -9,9 +9,11 @@
 
 #include "ast.h"
 #include "common.h"
+#include "inst.h"
 #include "tokenizer.c"
 #include "tokens.h"
 #include "parser.c"
+#include "codegen.c"
 
 int main(int argc, const char *argv[]) {
   assert(argc == 2);
@@ -37,6 +39,11 @@ int main(int argc, const char *argv[]) {
   AstExpr *ast = malloc(sizeof(*ast) * MAX_AST_SIZE);
   uint16_t index = parse(file, tokens, ast);
   print_ast(file, ast, index, 0);
+
+  printf("\nCodegen:\n");
+  Inst *insts = malloc(sizeof(*insts) * MAX_INSTRUCTIONS);
+  codegen(ast, index, insts);
+  print_insts(insts);
 
   return 0;
 }

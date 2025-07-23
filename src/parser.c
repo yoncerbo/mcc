@@ -119,7 +119,7 @@ uint16_t Parser_parse_unary(Parser *p) {
 uint16_t Parser_parse_binary(Parser *p, uint8_t precedence) {
   uint16_t right;
   uint16_t left = Parser_parse_unary(p);
-  uint16_t left_last_child = 0;
+  // uint16_t left_last_child = 0;
   while (1) {
     Token tok = p->tokens[p->pos];
     AstExprType op = tok2operation[tok.type];
@@ -128,11 +128,12 @@ uint16_t Parser_parse_binary(Parser *p, uint8_t precedence) {
     if (new_precedence < precedence) break;
     p->pos++;
     right = Parser_parse_binary(p, new_precedence);
-    if (p->ast_out[left].type == op) {
-      p->ast_out[left_last_child].next_sibling = right;
-      break;
-    }
-    left_last_child = right;
+    // Fow now don't combine
+    // if (p->ast_out[left].type == op) {
+    //   p->ast_out[left_last_child].next_sibling = right;
+    //   break;
+    // }
+    // left_last_child = right;
     p->ast_out[left].next_sibling = right;
     left =  Parser_create_expr(p, (AstExpr){
       .type = op,
