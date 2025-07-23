@@ -4,7 +4,16 @@
 #include <stdint.h>
 
 // TODO: reorder the tokens in the definition
-AstExprType tok2operation[TOK_DOT] = {
+AstExprType tok2operation[TOK_IDENT] = {
+  // For postfix expression
+  [TOK_LSQUARE] = AST_INDEX,
+  [TOK_LPAREN] = AST_CALL,
+  [TOK_DOT] = AST_DOT,
+  [TOK_ARROW] = AST_ARROW,
+  [TOK_DPLUS] = AST_POST_INC,
+  [TOK_DMINUS] = AST_POST_DEC,
+
+  // For binary operators
   [TOK_STAR] = AST_MUL, [TOK_SLASH] = AST_DIV, [TOK_PERCENT] = AST_MUL,
   [TOK_PLUS] = AST_ADD, [TOK_MINUS] = AST_SUB, [TOK_LSFT] = AST_LSFT,
   [TOK_RSFT] = AST_RSFT, [TOK_LT] = AST_LT, [TOK_LE] = AST_LE,
@@ -12,7 +21,7 @@ AstExprType tok2operation[TOK_DOT] = {
   [TOK_NEQ] = AST_NE, [TOK_AND] = AST_BAND, [TOK_HAT] = AST_BXOR,
   [TOK_OR] = AST_BOR, [TOK_DAND] = AST_LAND, [TOK_DOR] = AST_LOR,
 
-
+  // For assignments
   [TOK_EQ] = AST_ASS, [TOK_STAR_EQ] = AST_ASS_MUL, [TOK_SLASH_EQ] = AST_ASS_DIV,
   [TOK_PERCENT_EQ] = AST_ASS_MOD, [TOK_PLUS_EQ] = AST_ASS_ADD, [TOK_MINUS_EQ] = AST_ASS_SUB,
   [TOK_LSFT_EQ] = AST_ASS_LSFT, [TOK_RSF_EQ] = AST_ASS_RSFT, [TOK_AND_EQ] = AST_ASS_AND,
@@ -77,49 +86,80 @@ uint16_t Parser_parse_primary(Parser *p) {
 }
 
 uint16_t Parser_parse_postfix(Parser *p) {
-  uint16_t elem =  Parser_parse_primary(p);
-  Token tok = p->tokens[p->pos++];
-  switch (tok.type) {
-    case TOK_DPLUS:
-      return Parser_create_expr(p, (AstExpr){
-        .type = AST_POST_INC,
-        .start = p->ast_out[elem].start,
-        .value.first_child = elem,
+  Token ident;
+  uint16_t right;
+  uint16_t left =  Parser_parse_primary(p);
+  while (1) {
+    Token tok = p->tokens[p->pos];
+    AstExprType op = tok2operation[tok.type];
+    if (op < AST_INDEX) break;
+    if (op < AST_DOT) {
+      p->pos++;
+      right = Parser_parse_expression(p);
+      TokenType tt = op == AST_INDEX ? TOK_RSQUARE : TOK_RPAREN;
+      assert(p->tokens[p->pos].type == tt);
+      p->ast_out[left].next_sibling = right;
+    } else if (op < AST_POST_INC) {
+      ident = p->tokens[++p->pos];
+      assert(ident.type == TOK_IDENT);
+      right = Parser_create_expr(p, (AstExpr){
+        .type = AST_IDENT,
+        .start = ident.start,
+        .value.len = ident.len,
       });
-    case TOK_DMINUS:
-      return Parser_create_expr(p, (AstExpr){
-        .type = AST_POST_DEC,
-        .start = p->ast_out[elem].start,
-        .value.first_child = elem,
-      });
-    default:
-      p->pos--;
-      return elem;
+      p->ast_out[left].next_sibling = right;
+    }
+    left = Parser_create_expr(p, (AstExpr){
+      .type = op,
+      .start = p->ast_out[left].start,
+      .value.first_child = left,
+    });
+    p->pos++;
   }
+  return left;
 }
 
 uint16_t Parser_parse_unary(Parser *p) {
-  uint16_t elem;
-  Token tok = p->tokens[p->pos++];
+  Token tok = p->tokens[p->pos];
+  AstExprType op = 0;
+  // TODO: make another lookup table
   switch (tok.type) {
     case TOK_DPLUS:
-      elem =  Parser_parse_postfix(p);
-      return Parser_create_expr(p, (AstExpr){
-        .type = AST_PRE_INC,
-        .start = p->ast_out[elem].start,
-        .value.first_child = elem,
-      });
+      op = AST_PRE_INC;
+      break;
     case TOK_DMINUS:
-      elem =  Parser_parse_postfix(p);
-      return Parser_create_expr(p, (AstExpr){
-        .type = AST_PRE_DEC,
-        .start = p->ast_out[elem].start,
-        .value.first_child = elem,
-      });
-    default:
-      p->pos--;
-      return Parser_parse_postfix(p);
+      op = AST_PRE_DEC;
+      break;
+    case TOK_AND:
+      op = AST_ADDR;
+      break;
+    case TOK_STAR:
+      op = AST_DEREF;
+      break;
+    case TOK_PLUS:
+      op = AST_PLUS;
+      break;
+    case TOK_MINUS:
+      op = AST_MINUS;
+      break;
+    case TOK_TILDA:
+      op = AST_NEG;
+      break;
+    case TOK_NOT:
+      op = AST_NOT;
+      break;
+    case TOK_SIZEOF:
+      op = AST_SIZEOF;
+      break;
   }
+  if (!op) return Parser_parse_postfix(p);
+  p->pos++;
+  uint16_t arg =  Parser_parse_unary(p);
+  return Parser_create_expr(p, (AstExpr){
+    .type = op,
+    .start = tok.start,
+    .value.first_child = arg,
+  });
 }
 
 uint16_t Parser_parse_binary(Parser *p, uint8_t precedence, uint16_t left) {
@@ -127,6 +167,7 @@ uint16_t Parser_parse_binary(Parser *p, uint8_t precedence, uint16_t left) {
   // uint16_t left_last_child = 0;
   while (1) {
     Token tok = p->tokens[p->pos];
+    if (tok.type > TOK_IDENT) break;
     AstExprType op = tok2operation[tok.type];
     if (!op) break;
     uint8_t new_precedence = op2precedence[op];
@@ -149,12 +190,31 @@ uint16_t Parser_parse_binary(Parser *p, uint8_t precedence, uint16_t left) {
   return left;
 }
 
+// note: the ? and : work like parens
+uint16_t Parser_parse_conditional(Parser *p, uint16_t left) {
+  uint16_t cond = Parser_parse_binary(p, 0, left);
+  if (p->tokens[p->pos].type != TOK_QUESTION) return left;
+  p->pos++;
+  uint16_t then = Parser_parse_expression(p);
+  assert(p->tokens[p->pos++].type == TOK_COLON);
+  uint16_t els = Parser_parse_conditional(p, Parser_parse_unary(p));
+
+  p->ast_out[cond].next_sibling = then;
+  p->ast_out[then].next_sibling = els;
+  return Parser_create_expr(p, (AstExpr){
+    .type = AST_CONDITIONAL,
+    .value.first_child = cond,
+    .start = p->ast_out[cond].start,
+  });
+}
+
 uint16_t Parser_parse_assignment(Parser *p) {
   uint16_t right;
   uint16_t left = Parser_parse_unary(p);
   Token tok = p->tokens[p->pos];
+  if (tok.type > TOK_IDENT) return Parser_parse_conditional(p, left);
   AstExprType op = tok2operation[tok.type];
-  if (op < AST_ASS) return Parser_parse_binary(p, 0, left);
+  if (op < AST_ASS) return Parser_parse_conditional(p, left);
   p->pos++;
   right = Parser_parse_assignment(p);
   p->ast_out[left].next_sibling = right;
