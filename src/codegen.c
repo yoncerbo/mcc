@@ -5,7 +5,7 @@
 #include <assert.h>
 
 typedef struct {
-  AstNode *ast;
+  const AstNode *ast;
   Inst *insts;
   uint16_t inst_len;
 } Codegen;
@@ -26,18 +26,18 @@ uint16_t Codegen_value(Codegen *c, uint16_t start) {
       uint16_t low = expr.value.i64;
       uint16_t high = expr.value.i64 >> 16;
       // TODO: a quick fix, think about a better way, maybe variable length?
-      return Codegen_inst(c, (Inst){ INST_INT, low, high });
+      return Codegen_inst(c, (Inst){ INST_INT, low, high, 0 });
     case AST_ADD:
       uint16_t left = expr.value.first_child;
       a = Codegen_value(c, left);
       b = Codegen_value(c, c->ast[left].next_sibling);
-      return Codegen_inst(c, (Inst){ INST_ADD, a, b });
+      return Codegen_inst(c, (Inst){ INST_ADD, a, b, 0 });
     default:
       assert(0);
   }
 }
 
-void codegen(AstNode *ast, uint16_t ast_start, Inst *insts) {
+void codegen(const AstNode *ast, uint16_t ast_start, Inst insts[MAX_INSTRUCTIONS]) {
   Codegen c = {
     .ast = ast,
     .insts = insts,

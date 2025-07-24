@@ -77,7 +77,7 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
       continue;
     }
 
-    TokenType tt = ch2token[*ch];
+    TokenType tt = ch2token[(uint8_t)*ch];
 
     if (tt) {
       uint32_t len = 1;

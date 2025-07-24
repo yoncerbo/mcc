@@ -22,7 +22,7 @@ typedef struct {
   uint16_t type, a, b, c;
 } Inst;
 
-void codegen(AstNode *ast, uint16_t ast_start, Inst insts[MAX_INSTRUCTIONS]);
+void codegen(const AstNode *ast, uint16_t ast_start, Inst insts[MAX_INSTRUCTIONS]);
 void print_insts(const Inst *insts);
 
 #endif

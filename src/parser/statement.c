@@ -103,7 +103,7 @@ uint16_t Parser_parse_statement(Parser *p) {
       last = Parser_parse_statement(p);
       p->ast_out[inner].next_sibling = last;
       return Parser_create_expr(p, (AstNode){
-        .type = TOK_WHILE,
+        .type = AST_WHILE,
         .start = tok.start,
         .value.first_child = inner,
       });
@@ -117,7 +117,7 @@ uint16_t Parser_parse_statement(Parser *p) {
       assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
       p->ast_out[inner].next_sibling = last;
       return Parser_create_expr(p, (AstNode){
-        .type = TOK_WHILE,
+        .type = AST_DO_WHILE,
         .start = tok.start,
         .value.first_child = inner,
       });
@@ -162,7 +162,7 @@ uint16_t Parser_parse_statement(Parser *p) {
       p->ast_out[last].next_sibling = elem;
       p->ast_out[elem].next_sibling = Parser_parse_statement(p);
       return Parser_create_expr(p, (AstNode){
-        .type = TOK_FOR,
+        .type = AST_FOR,
         .start = tok.start,
         .value.first_child = inner,
       });

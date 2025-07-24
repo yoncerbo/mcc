@@ -97,7 +97,6 @@ uint16_t parse(const char *source, const Token *tokens, AstNode *ast_out, Parser
 }
 
 void print_ast(Parser *p, uint16_t node, int indent_level) {
-  AstNode expr;
   Str name;
   while (1) {
     AstNode expr = p->ast_out[node];
@@ -106,6 +105,12 @@ void print_ast(Parser *p, uint16_t node, int indent_level) {
     switch (expr.type) {
       case AST_INT:
         printf("%ld\n", expr.value.i64);
+        break;
+      case AST_DECL:
+        name = p->vars[expr.value.decl.var].name;
+        printf("%.*s\n", name.len, name.ptr);
+        if (!expr.value.first_child) break;
+        print_ast(p, expr.value.first_child, indent_level + 1);
         break;
       case AST_VAR:
         name = p->vars[expr.value.var].name;
@@ -119,10 +124,6 @@ void print_ast(Parser *p, uint16_t node, int indent_level) {
         name = p->labels[expr.value.label];
         printf("%.*s\n", name.len, name.ptr);
         break;
-      case AST_DECL: // For now this node type stores the var name's start in its start
-        name = p->vars[expr.value.decl.var].name;
-        printf("%.*s", name.len, name.ptr);
-        // no break - also print children
       default:
         putchar(10);
         if (!expr.value.first_child) break;

@@ -45,10 +45,10 @@ int main(int argc, const char *argv[]) {
   uint16_t index = parse(file, tokens, ast, &p);
   print_ast(&p, index, 0);
 
-  printf("\nCodegen:\n");
-  Inst *insts = malloc(sizeof(*insts) * MAX_INSTRUCTIONS);
-  codegen(ast, index, insts);
-  print_insts(insts);
+  // printf("\nCodegen:\n");
+  // Inst *insts = malloc(sizeof(*insts) * MAX_INSTRUCTIONS);
+  // codegen(ast, index, insts);
+  // print_insts(insts);
 
   // printf("\nGenerating assembly:\n");
   // generate_assembly(insts);
