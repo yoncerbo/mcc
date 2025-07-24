@@ -83,6 +83,9 @@ typedef enum {
   AST_BREAK,
   AST_RETURN,
 
+  AST_DECL,
+  AST_VAR,
+
   AST_COUNT,
 } AstType;
 
@@ -149,6 +152,8 @@ const char *AST_TYPE_STR[AST_COUNT] = {
   "AST_CONTINUE",
   "AST_BREAK",
   "AST_RETURN",
+  "AST_DECL",
+  "AST_VAR",
 };
 
 // TODO: consider doing variable length instead
@@ -157,6 +162,7 @@ typedef union {
   double f64;
   uint16_t len; // ident, string
   uint16_t first_child;
+  uint16_t var;
 } AstValue;
 
 typedef struct {
@@ -166,8 +172,9 @@ typedef struct {
   AstValue value;
 } AstNode;
 
+typedef struct Parser Parser;
 
-uint16_t parse(const char *source, const Token *tokens, AstNode *ast_out);
-void print_ast(const char *source, const AstNode *ast, uint16_t start, int indent_level);
+uint16_t parse(const char *source, const Token *tokens, AstNode *ast_out, Parser *p);
+void print_ast(Parser *p, uint16_t node, int indent_level);
 
 #endif

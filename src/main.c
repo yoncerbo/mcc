@@ -37,9 +37,10 @@ int main(int argc, const char *argv[]) {
   print_tokens(tokens);
 
   printf("\nParsing:\n");
+  Parser p;
   AstNode *ast = malloc(sizeof(*ast) * MAX_AST_SIZE);
-  uint16_t index = parse(file, tokens, ast);
-  print_ast(file, ast, index, 0);
+  uint16_t index = parse(file, tokens, ast, &p);
+  print_ast(&p, index, 0);
 
   printf("\nCodegen:\n");
   Inst *insts = malloc(sizeof(*insts) * MAX_INSTRUCTIONS);
