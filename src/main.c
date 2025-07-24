@@ -37,7 +37,7 @@ int main(int argc, const char *argv[]) {
   print_tokens(tokens);
 
   printf("\nParsing:\n");
-  AstExpr *ast = malloc(sizeof(*ast) * MAX_AST_SIZE);
+  AstNode *ast = malloc(sizeof(*ast) * MAX_AST_SIZE);
   uint16_t index = parse(file, tokens, ast);
   print_ast(file, ast, index, 0);
 

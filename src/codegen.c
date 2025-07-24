@@ -5,7 +5,7 @@
 #include <assert.h>
 
 typedef struct {
-  AstExpr *ast;
+  AstNode *ast;
   Inst *insts;
   uint16_t inst_len;
 } Codegen;
@@ -18,7 +18,7 @@ static inline uint16_t Codegen_inst(Codegen *c, Inst inst) {
 }
 
 uint16_t Codegen_value(Codegen *c, uint16_t start) {
-  AstExpr expr = c->ast[start];
+  AstNode expr = c->ast[start];
   uint16_t a, b;
   switch (expr.type) {
     case AST_INT:
@@ -37,7 +37,7 @@ uint16_t Codegen_value(Codegen *c, uint16_t start) {
   }
 }
 
-void codegen(AstExpr *ast, uint16_t ast_start, Inst *insts) {
+void codegen(AstNode *ast, uint16_t ast_start, Inst *insts) {
   Codegen c = {
     .ast = ast,
     .insts = insts,

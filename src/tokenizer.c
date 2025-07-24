@@ -49,7 +49,7 @@ Str keywords[] = {
   STR("extern"), STR("return"), STR("void"), STR("case"), STR("float"),
   STR("short"), STR("volatile"), STR("char"), STR("for"), STR("signed"),
   STR("while"), STR("const"), STR("goto"), STR("sizeof"), STR("_Bool"),
-  STR("continue"), STR("if"), STR("static"), STR("_Complex"), STR("deault"),
+  STR("continue"), STR("if"), STR("static"), STR("_Complex"), STR("default"),
   STR("inline"), STR("struct"), STR("_Imaginary"), STR("do"), STR("int"),
   STR("switch"), STR("double"), STR("long"), STR("typedef"), STR("else"),
   STR("register"), STR("union"),

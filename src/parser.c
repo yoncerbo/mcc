@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 // TODO: reorder the tokens in the definition
-AstExprType tok2operation[TOK_IDENT] = {
+AstType tok2operation[TOK_IDENT] = {
   // For postfix expression
   [TOK_LSQUARE] = AST_INDEX,
   [TOK_LPAREN] = AST_CALL,
@@ -29,7 +29,7 @@ AstExprType tok2operation[TOK_IDENT] = {
 };
 
 // TODO: reorder the ast types and limite the size
-uint8_t op2precedence[AST_COUNT] = {
+uint8_t op2precedence[AST_ASS] = {
   [AST_MUL] = 10, [AST_DIV] = 10, [AST_MOD] = 10,
   [AST_ADD] = 9, [AST_SUB] = 9, [AST_LSFT] = 8,
   [AST_RSFT] = 8, [AST_LT] = 7, [AST_LE] = 7,
@@ -41,12 +41,12 @@ uint8_t op2precedence[AST_COUNT] = {
 typedef struct {
   const char *source;
   const Token *tokens;
-  AstExpr *ast_out;
+  AstNode *ast_out;
   uint16_t pos;
   uint16_t ast_size;
 } Parser;
 
-static inline uint16_t Parser_create_expr(Parser *p, AstExpr expr) {
+static inline uint16_t Parser_create_expr(Parser *p, AstNode expr) {
   assert(p->ast_size < MAX_AST_SIZE);
   uint16_t index = p->ast_size++;
   p->ast_out[index] = expr;
@@ -60,7 +60,7 @@ uint16_t Parser_parse_primary(Parser *p) {
   Token tok = p->tokens[p->pos++];
   switch (tok.type) {
     case TOK_IDENT:
-      return Parser_create_expr(p, (AstExpr){
+      return Parser_create_expr(p, (AstNode){
           .type = AST_IDENT,
           .start = tok.start,
           .value.len = tok.len,
@@ -71,7 +71,7 @@ uint16_t Parser_parse_primary(Parser *p) {
         number *= 10;
         number += p->source[tok.start + i] - '0';
       }
-      return Parser_create_expr(p, (AstExpr){
+      return Parser_create_expr(p, (AstNode){
           .type = AST_INT,
           .start = tok.start,
           .value.i64 = number,
@@ -91,7 +91,7 @@ uint16_t Parser_parse_postfix(Parser *p) {
   uint16_t left =  Parser_parse_primary(p);
   while (1) {
     Token tok = p->tokens[p->pos];
-    AstExprType op = tok2operation[tok.type];
+    AstType op = tok2operation[tok.type];
     if (op < AST_INDEX) break;
     if (op < AST_DOT) {
       p->pos++;
@@ -102,14 +102,14 @@ uint16_t Parser_parse_postfix(Parser *p) {
     } else if (op < AST_POST_INC) {
       ident = p->tokens[++p->pos];
       assert(ident.type == TOK_IDENT);
-      right = Parser_create_expr(p, (AstExpr){
+      right = Parser_create_expr(p, (AstNode){
         .type = AST_IDENT,
         .start = ident.start,
         .value.len = ident.len,
       });
       p->ast_out[left].next_sibling = right;
     }
-    left = Parser_create_expr(p, (AstExpr){
+    left = Parser_create_expr(p, (AstNode){
       .type = op,
       .start = p->ast_out[left].start,
       .value.first_child = left,
@@ -121,8 +121,8 @@ uint16_t Parser_parse_postfix(Parser *p) {
 
 uint16_t Parser_parse_unary(Parser *p) {
   Token tok = p->tokens[p->pos];
-  AstExprType op = 0;
-  // TODO: make another lookup table
+  AstType op = 0;
+  // TODO: make another lookup table or something
   switch (tok.type) {
     case TOK_DPLUS:
       op = AST_PRE_INC;
@@ -151,11 +151,12 @@ uint16_t Parser_parse_unary(Parser *p) {
     case TOK_SIZEOF:
       op = AST_SIZEOF;
       break;
+    default:
+      return Parser_parse_postfix(p);
   }
-  if (!op) return Parser_parse_postfix(p);
   p->pos++;
   uint16_t arg =  Parser_parse_unary(p);
-  return Parser_create_expr(p, (AstExpr){
+  return Parser_create_expr(p, (AstNode){
     .type = op,
     .start = tok.start,
     .value.first_child = arg,
@@ -168,7 +169,7 @@ uint16_t Parser_parse_binary(Parser *p, uint8_t precedence, uint16_t left) {
   while (1) {
     Token tok = p->tokens[p->pos];
     if (tok.type > TOK_IDENT) break;
-    AstExprType op = tok2operation[tok.type];
+    AstType op = tok2operation[tok.type];
     if (!op) break;
     uint8_t new_precedence = op2precedence[op];
     if (new_precedence < precedence) break;
@@ -181,7 +182,7 @@ uint16_t Parser_parse_binary(Parser *p, uint8_t precedence, uint16_t left) {
     // }
     // left_last_child = right;
     p->ast_out[left].next_sibling = right;
-    left =  Parser_create_expr(p, (AstExpr){
+    left =  Parser_create_expr(p, (AstNode){
       .type = op,
       .start = p->ast_out[left].start,
       .value.first_child = left,
@@ -201,7 +202,7 @@ uint16_t Parser_parse_conditional(Parser *p, uint16_t left) {
 
   p->ast_out[cond].next_sibling = then;
   p->ast_out[then].next_sibling = els;
-  return Parser_create_expr(p, (AstExpr){
+  return Parser_create_expr(p, (AstNode){
     .type = AST_CONDITIONAL,
     .value.first_child = cond,
     .start = p->ast_out[cond].start,
@@ -213,12 +214,12 @@ uint16_t Parser_parse_assignment(Parser *p) {
   uint16_t left = Parser_parse_unary(p);
   Token tok = p->tokens[p->pos];
   if (tok.type > TOK_IDENT) return Parser_parse_conditional(p, left);
-  AstExprType op = tok2operation[tok.type];
+  AstType op = tok2operation[tok.type];
   if (op < AST_ASS) return Parser_parse_conditional(p, left);
   p->pos++;
   right = Parser_parse_assignment(p);
   p->ast_out[left].next_sibling = right;
-  return Parser_create_expr(p, (AstExpr){
+  return Parser_create_expr(p, (AstNode){
     .type = op,
     .value.first_child = left,
     .start = p->ast_out[left].start,
@@ -237,8 +238,223 @@ uint16_t Parser_parse_expression(Parser *p) {
   return first;
 }
 
-uint16_t parse(const char *source, const Token *tokens, AstExpr *ast_out) {
+uint16_t Parser_parse_statement(Parser *p);
+
+uint16_t Parser_parse_block(Parser *p) {
+  uint16_t first = 0, last = 0;
+  while(p->tokens[p->pos].type != TOK_RBRACE) {
+    assert(p->tokens[p->pos].type);
+    uint16_t elem = Parser_parse_statement(p);
+    if (!first) first = elem;
+    else p->ast_out[last].next_sibling = elem;
+    last = elem;
+  }
+  p->pos++;
+  return first;
+}
+
+uint16_t Parser_parse_statement(Parser *p) {
+  uint16_t inner = 0;
+  uint16_t last = 0;
+  Token tok = p->tokens[p->pos];
+  switch (tok.type) {
+    case TOK_IDENT:
+      if (p->tokens[p->pos + 1].type != TOK_COLON) break;
+      p->pos++;
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_LABEL,
+        .start = tok.start,
+        .value.len = tok.len,
+      });
+    case TOK_CASE:
+      p->pos++;
+      // constant expressions
+      // https://rgambord.github.io/c99-doc/sections/6/6/index.html
+      inner = Parser_parse_conditional(p, Parser_parse_unary(p));
+      assert(p->tokens[p->pos++].type == TOK_COLON);
+      p->ast_out[inner].next_sibling = Parser_parse_statement(p);
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_CASE,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_DEFAULT:
+      p->pos++;
+      assert(p->tokens[p->pos++].type == TOK_COLON);
+      inner = Parser_parse_statement(p);
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_DEFAULT,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_LBRACE:
+      p->pos++;
+      inner = Parser_parse_block(p);
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_COMPOUND,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_SEMICOLON:
+      p->pos++;
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_EMPTY,
+        .start = tok.start,
+        .value.first_child = 0,
+      });
+    case TOK_IF:
+      p->pos++;
+      assert(p->tokens[p->pos++].type == TOK_LPAREN);
+      inner = Parser_parse_expression(p);
+      assert(p->tokens[p->pos++].type == TOK_RPAREN);
+      last = Parser_parse_statement(p);
+      p->ast_out[inner].next_sibling = last;
+      if (p->tokens[p->pos].type == TOK_ELSE) {
+        p->pos++;
+        p->ast_out[last].next_sibling = Parser_parse_statement(p);
+      }
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_IF,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_SWITCH:
+      p->pos++;
+      assert(p->tokens[p->pos++].type == TOK_LPAREN);
+      inner = Parser_parse_expression(p);
+      assert(p->tokens[p->pos++].type == TOK_RPAREN);
+      last = Parser_parse_statement(p);
+      p->ast_out[inner].next_sibling = last;
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_SWITCH,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_WHILE:
+      p->pos++;
+      assert(p->tokens[p->pos++].type == TOK_LPAREN);
+      inner = Parser_parse_expression(p);
+      assert(p->tokens[p->pos++].type == TOK_RPAREN);
+      last = Parser_parse_statement(p);
+      p->ast_out[inner].next_sibling = last;
+      return Parser_create_expr(p, (AstNode){
+        .type = TOK_WHILE,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_DO:
+      p->pos++;
+      inner = Parser_parse_statement(p);
+      assert(p->tokens[p->pos++].type == TOK_WHILE);
+      assert(p->tokens[p->pos++].type == TOK_LPAREN);
+      last = Parser_parse_expression(p);
+      assert(p->tokens[p->pos++].type == TOK_RPAREN);
+      assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+      p->ast_out[inner].next_sibling = last;
+      return Parser_create_expr(p, (AstNode){
+        .type = TOK_WHILE,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_FOR:
+      p->pos++;
+      assert(p->tokens[p->pos++].type == TOK_LPAREN);
+      if (p->tokens[p->pos].type == TOK_SEMICOLON) {
+        inner = Parser_create_expr(p, (AstNode){
+          .type = AST_EMPTY,
+          .start = p->tokens[p->pos].start,
+          .value.first_child = 0,
+        });
+        p->pos++;
+      } else {
+        inner = Parser_parse_expression(p);
+        assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+      }
+      if (p->tokens[p->pos].type == TOK_SEMICOLON) {
+        last = Parser_create_expr(p, (AstNode){
+          .type = AST_EMPTY,
+          .start = p->tokens[p->pos].start,
+          .value.first_child = 0,
+        });
+        p->pos++;
+      } else {
+        last = Parser_parse_expression(p);
+        assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+      }
+      p->ast_out[inner].next_sibling = last;
+      uint16_t elem;
+      if (p->tokens[p->pos].type == TOK_RPAREN) {
+        elem = Parser_create_expr(p, (AstNode){
+          .type = AST_EMPTY,
+          .start = p->tokens[p->pos].start,
+          .value.first_child = 0,
+        });
+        p->pos++;
+      } else {
+        elem = Parser_parse_expression(p);
+        assert(p->tokens[p->pos++].type == TOK_RPAREN);
+      }
+      p->ast_out[last].next_sibling = elem;
+      p->ast_out[elem].next_sibling = Parser_parse_statement(p);
+      return Parser_create_expr(p, (AstNode){
+        .type = TOK_FOR,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_GOTO:
+      p->pos++;
+      Token ident = p->tokens[p->pos++];
+      assert(ident.type = TOK_IDENT);
+      inner = Parser_create_expr(p, (AstNode){
+        .type = AST_IDENT,
+        .start = ident.start,
+        .value.len = ident.len,
+      });
+      assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_GOTO,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_CONTINUE:
+      p->pos++;
+      assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_CONTINUE,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_BREAK:
+      p->pos++;
+      assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_BREAK,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    case TOK_RETURN:
+      if (p->tokens[++p->pos].type != TOK_SEMICOLON) {
+        inner = Parser_parse_expression(p);
+        assert(p->tokens[p->pos].type == TOK_SEMICOLON);
+      }
+      p->pos++;
+      return Parser_create_expr(p, (AstNode){
+        .type = AST_RETURN,
+        .start = tok.start,
+        .value.first_child = inner,
+      });
+    default:
+      break;
+
+  }
+  uint16_t expr = Parser_parse_expression(p);
+  assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+  return expr;
+}
+
+uint16_t parse(const char *source, const Token *tokens, AstNode *ast_out) {
   Parser p = { source, tokens, ast_out };
+  p.ast_size = 1; // leave the first empty, to use zero for no children
 
   assert(tokens[0].type == TOK_INT);
   assert(tokens[1].type == TOK_IDENT);
@@ -247,16 +463,15 @@ uint16_t parse(const char *source, const Token *tokens, AstExpr *ast_out) {
   assert(tokens[3].type == TOK_VOID);
   assert(tokens[4].type == TOK_RPAREN);
   assert(tokens[5].type == TOK_LBRACE);
-  assert(tokens[6].type == TOK_RETURN);
-  p.pos = 7;
+  p.pos = 6;
 
-  return Parser_parse_expression(&p);
+  return Parser_parse_block(&p);
 }
 
-void print_ast(const char *source, const AstExpr *ast, uint16_t start, int indent_level) {
-  AstExpr expr;
+void print_ast(const char *source, const AstNode *ast, uint16_t start, int indent_level) {
+  AstNode expr;
   while (1) {
-    AstExpr expr = ast[start];
+    AstNode expr = ast[start];
     for (int i = 0; i < indent_level * 2; ++i) putchar(' ');
     printf("%s: ", AST_TYPE_STR[expr.type]);
     switch (expr.type) {
@@ -264,10 +479,12 @@ void print_ast(const char *source, const AstExpr *ast, uint16_t start, int inden
         printf("%ld\n", expr.value.i64);
         break;
       case AST_IDENT:
+      case AST_LABEL:
         printf("%.*s\n", expr.value.len, &source[expr.start]);
         break;
       default:
         putchar(10);
+        if (!expr.value.first_child) break;
         print_ast(source, ast, expr.value.first_child, indent_level + 1);
         break;
     }
