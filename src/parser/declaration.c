@@ -15,11 +15,12 @@ uint16_t Parser_parse_declaration(Parser *p) {
         value = Parser_parse_expression(p);
       }
       assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
-      uint16_t var = Parser_push_var(p, name);
+      VarId var = Parser_push_var(p, name);
       return Parser_create_expr(p, (AstNode){
         .type = AST_DECL,
         .start = ident.start, // TODO: store the ident's start elsewhere
-        .value.first_child = value,
+        .value.decl.value = value,
+        .value.decl.var = var,
       });
       break;
     default:

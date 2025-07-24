@@ -7,7 +7,7 @@ uint16_t Parser_parse_primary(Parser *p) {
   Token tok = p->tokens[p->pos++];
   switch (tok.type) {
     case TOK_IDENT:
-      uint16_t var = Parser_resolve_var(p, (Str){ &p->source[tok.start], tok.len });
+      VarId var = Parser_resolve_var(p, (Str){ &p->source[tok.start], tok.len });
       assert(var);
       return Parser_create_expr(p, (AstNode){
         .type = AST_VAR,

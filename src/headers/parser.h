@@ -9,10 +9,23 @@
 #define MAX_SCOPES 64
 #define MAX_LABELS 64
 
+typedef uint16_t AstId;
+typedef uint16_t VarId;
+typedef uint16_t LabelId;
+
+typedef struct {
+  VarId start;
+  uint16_t len;
+} Scope;
+
+typedef struct {
+  Str name;
+} Var;
+
 typedef struct {
   Str labels[MAX_LABELS];
-  Str vars[MAX_VARIABLES];
-  uint16_t scopes[MAX_SCOPES];
+  Var vars[MAX_VARIABLES];
+  Scope scopes[MAX_SCOPES];
   const char *source;
   const Token *tokens;
   AstNode *ast_out;
@@ -22,10 +35,6 @@ typedef struct {
   uint16_t labels_size;
   uint8_t scope;
 } Parser;
-
-typedef uint16_t AstId;
-typedef uint16_t VarId;
-typedef uint16_t LabelId;
 
 AstId parse(const char *source, const Token *tokens, AstNode *ast_out, Parser *p);
 void print_ast(Parser *p, uint16_t node, int indent_level);

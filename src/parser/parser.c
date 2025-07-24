@@ -25,22 +25,38 @@ uint16_t Parser_resolve_label(Parser *p, Str name) {
   return 0;
 }
 
-uint16_t Parser_push_var(Parser *p, Str name) {
+VarId Parser_push_var(Parser *p, Str name) {
   assert(p->var_size < MAX_VARIABLES);
   uint16_t index = p->var_size++;
-  p->vars[index] = name;
-  p->scopes[p->scope]++;
+  // Check for variables in the scope with the same name
+  Scope *scope = &p->scopes[p->scope];
+  for (int i = scope->start; i < scope->start + scope->len; ++i) {
+    if (p->vars[i].name.len != name.len) continue;
+    assert(strncmp(p->vars[i].name.ptr, name.ptr, name.len));
+  }
+  p->vars[index] = (Var){ name };
+  scope->len++;
   return index;
+}
+
+uint16_t Parser_resolve_var(Parser *p, Str name) {
+  for (int i = p->scope; i >= 0; --i) {
+    Scope scope = p->scopes[i];
+    for (int i = scope.start + scope.len; i >= scope.start; --i) {
+      if (name.len != p->vars[i].name.len) continue;
+      if (!strncmp(p->vars[i].name.ptr, name.ptr, name.len)) return i;
+    }
+  }
+  return 0;
 }
 
 void Parser_push_scope(Parser *p) {
   assert(p->scope++ < MAX_SCOPES);
-  p->scopes[p->scope] = 0;
+  p->scopes[p->scope] = (Scope){ p->var_size, 0 };
 }
 
 void Parser_pop_scope(Parser *p) {
-  assert(p->scope);
-  p->var_size -= p->scopes[p->scope];
+  assert(p->scope--);
 }
 
 uint16_t Parser_create_expr(Parser *p, AstNode expr) {
@@ -48,14 +64,6 @@ uint16_t Parser_create_expr(Parser *p, AstNode expr) {
   uint16_t index = p->ast_size++;
   p->ast_out[index] = expr;
   return index;
-}
-
-uint16_t Parser_resolve_var(Parser *p, Str name) {
-  for (uint16_t i = p->var_size - 1; i > 0; --i) {
-    if (name.len != p->vars[i].len) continue;
-    if (!strncmp(p->vars[i].ptr, name.ptr, name.len)) return i;
-  }
-  return 0;
 }
 
 uint16_t Parser_create_ident(Parser *p, Token source) {
@@ -99,11 +107,9 @@ void print_ast(Parser *p, uint16_t node, int indent_level) {
       case AST_INT:
         printf("%ld\n", expr.value.i64);
         break;
-      case AST_DECL: // For now this node type stores the var name's start in its start
       case AST_VAR:
-        const char *str = &p->source[expr.start];
-        while (*str == '_' || IS_ALPHA(*str) || IS_NUMERIC(*str)) putchar(*str++);
-        putchar(10);
+        name = p->vars[expr.value.var].name;
+        printf("%.*s\n", name.len, name.ptr);
         break;
       case AST_IDENT:
         printf("%.*s\n", expr.value.len, &p->source[expr.start]);
@@ -113,6 +119,10 @@ void print_ast(Parser *p, uint16_t node, int indent_level) {
         name = p->labels[expr.value.label];
         printf("%.*s\n", name.len, name.ptr);
         break;
+      case AST_DECL: // For now this node type stores the var name's start in its start
+        name = p->vars[expr.value.decl.var].name;
+        printf("%.*s", name.len, name.ptr);
+        // no break - also print children
       default:
         putchar(10);
         if (!expr.value.first_child) break;
