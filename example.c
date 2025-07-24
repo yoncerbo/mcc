@@ -1,6 +1,5 @@
 
 int main(void) {
-label:
-  return 0;
-  goto label;
+  int x = 10;
+  return x;
 }

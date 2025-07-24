@@ -4,10 +4,6 @@
 #include <assert.h>
 #include <string.h>
 
-#define IS_NUMERIC(ch) ((ch) >= '0' && (ch) <= '9')
-#define IS_ALPHA(ch) \
-    (((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z'))
-
 TokenType ch2token[128] = {
   ['-'] = TOK_MINUS, ['+'] = TOK_PLUS, ['<'] = TOK_LT,
   ['>'] = TOK_GT, ['='] = TOK_EQ, ['!'] = TOK_NOT,

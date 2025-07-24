@@ -5,6 +5,10 @@
 
 #define MAX_TOKENS 256
 
+#define IS_NUMERIC(ch) ((ch) >= '0' && (ch) <= '9')
+#define IS_ALPHA(ch) \
+    (((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z'))
+
 typedef enum {
   TOK_NONE,
 

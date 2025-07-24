@@ -12,7 +12,10 @@
 #include "inst.h"
 #include "tokenizer.c"
 #include "tokens.h"
-#include "parser.c"
+#include "parser/parser.c"
+#include "parser/expression.c"
+#include "parser/statement.c"
+#include "parser/declaration.c"
 #include "codegen.c"
 // #include "assembly.c"
 

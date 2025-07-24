@@ -1,0 +1,125 @@
+#include "ast.h"
+#include "tokens.h"
+#include "parser.h"
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+
+// note: lable scope is per function
+uint16_t Parser_push_label(Parser *p, Str name) {
+  assert(p->labels_size < MAX_VARIABLES);
+  for (int i = 1; i < p->labels_size; ++i) {
+    if (p->labels[i].len != name.len) continue;
+    assert(strncmp(p->labels[i].ptr, name.ptr, name.len));
+  }
+  uint16_t index = p->labels_size++;
+  p->labels[index] = name;
+  return index;
+}
+
+uint16_t Parser_resolve_label(Parser *p, Str name) {
+  for (uint16_t i = p->labels_size - 1; i > 0; --i) {
+    if (name.len != p->labels[i].len) continue;
+    if (!strncmp(p->labels[i].ptr, name.ptr, name.len)) return i;
+  }
+  return 0;
+}
+
+uint16_t Parser_push_var(Parser *p, Str name) {
+  assert(p->var_size < MAX_VARIABLES);
+  uint16_t index = p->var_size++;
+  p->vars[index] = name;
+  p->scopes[p->scope]++;
+  return index;
+}
+
+void Parser_push_scope(Parser *p) {
+  assert(p->scope++ < MAX_SCOPES);
+  p->scopes[p->scope] = 0;
+}
+
+void Parser_pop_scope(Parser *p) {
+  assert(p->scope);
+  p->var_size -= p->scopes[p->scope];
+}
+
+uint16_t Parser_create_expr(Parser *p, AstNode expr) {
+  assert(p->ast_size < MAX_AST_SIZE);
+  uint16_t index = p->ast_size++;
+  p->ast_out[index] = expr;
+  return index;
+}
+
+uint16_t Parser_resolve_var(Parser *p, Str name) {
+  for (uint16_t i = p->var_size - 1; i > 0; --i) {
+    if (name.len != p->vars[i].len) continue;
+    if (!strncmp(p->vars[i].ptr, name.ptr, name.len)) return i;
+  }
+  return 0;
+}
+
+uint16_t Parser_create_ident(Parser *p, Token source) {
+  return Parser_create_expr(p, (AstNode){
+    .type = AST_IDENT,
+    .start = source.start,
+    .value.len = source.len,
+  });
+}
+
+uint16_t parse(const char *source, const Token *tokens, AstNode *ast_out, Parser *p) {
+  *p = (Parser){ 
+    .source = source,
+    .tokens = tokens,
+    .ast_out = ast_out,
+    .var_size = 1, // 0 means not found or invalid
+    .ast_size = 1, // leave the first empty, to use zero for no children
+    .labels_size = 1, // same as above
+  };
+
+  assert(tokens[0].type == TOK_INT);
+  assert(tokens[1].type == TOK_IDENT);
+  assert(!strncmp(&source[tokens[1].start], "main", 4));
+  assert(tokens[2].type == TOK_LPAREN);
+  assert(tokens[3].type == TOK_VOID);
+  assert(tokens[4].type == TOK_RPAREN);
+  assert(tokens[5].type == TOK_LBRACE);
+  p->pos = 6;
+
+  return Parser_parse_block(p);
+}
+
+void print_ast(Parser *p, uint16_t node, int indent_level) {
+  AstNode expr;
+  Str name;
+  while (1) {
+    AstNode expr = p->ast_out[node];
+    for (int i = 0; i < indent_level * 2; ++i) putchar(' ');
+    printf("%s ", AST_TYPE_STR[expr.type]);
+    switch (expr.type) {
+      case AST_INT:
+        printf("%ld\n", expr.value.i64);
+        break;
+      case AST_DECL: // For now this node type stores the var name's start in its start
+      case AST_VAR:
+        const char *str = &p->source[expr.start];
+        while (*str == '_' || IS_ALPHA(*str) || IS_NUMERIC(*str)) putchar(*str++);
+        putchar(10);
+        break;
+      case AST_IDENT:
+        printf("%.*s\n", expr.value.len, &p->source[expr.start]);
+        break;
+      case AST_GOTO:
+      case AST_LABEL:
+        name = p->labels[expr.value.label];
+        printf("%.*s\n", name.len, name.ptr);
+        break;
+      default:
+        putchar(10);
+        if (!expr.value.first_child) break;
+        print_ast(p, expr.value.first_child, indent_level + 1);
+        break;
+    }
+    if (!expr.next_sibling) break;
+    node = expr.next_sibling;
+  }
+}
