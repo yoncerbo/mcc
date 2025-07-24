@@ -163,6 +163,7 @@ typedef union {
   uint16_t len; // ident, string
   uint16_t first_child;
   uint16_t var;
+  uint16_t label;
 } AstValue;
 
 typedef struct {

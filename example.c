@@ -1,7 +1,6 @@
 
 int main(void) {
-  int x = 10;
-  int y = 10;
-  return x;
+label:
   return 0;
+  goto label;
 }

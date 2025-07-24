@@ -6,6 +6,7 @@
 
 #define MAX_VARIABLES 256
 #define MAX_SCOPES 64
+#define MAX_LABELS 64
 
 // TODO: reorder the tokens in the definition
 AstType tok2operation[TOK_IDENT] = {
@@ -43,6 +44,7 @@ uint8_t op2precedence[AST_ASS] = {
 };
 
 typedef struct Parser {
+  Str labels[MAX_LABELS];
   Str vars[MAX_VARIABLES];
   uint16_t scopes[MAX_SCOPES];
   const char *source;
@@ -51,8 +53,29 @@ typedef struct Parser {
   uint16_t pos;
   uint16_t ast_size;
   uint16_t var_size;
+  uint16_t labels_size;
   uint8_t scope;
 };
+
+// note: lable scope is per function
+uint16_t Parser_push_label(Parser *p, Str name) {
+  assert(p->labels_size < MAX_VARIABLES);
+  for (int i = 1; i < p->labels_size; ++i) {
+    if (p->labels[i].len != name.len) continue;
+    assert(strncmp(p->labels[i].ptr, name.ptr, name.len));
+  }
+  uint16_t index = p->labels_size++;
+  p->labels[index] = name;
+  return index;
+}
+
+uint16_t Parser_resolve_label(Parser *p, Str name) {
+  for (uint16_t i = p->labels_size - 1; i > 0; --i) {
+    if (name.len != p->labels[i].len) continue;
+    if (!strncmp(p->labels[i].ptr, name.ptr, name.len)) return i;
+  }
+  return 0;
+}
 
 static inline uint16_t Parser_push_var(Parser *p, Str name) {
   assert(p->var_size < MAX_VARIABLES);
@@ -100,6 +123,7 @@ uint16_t Parser_parse_primary(Parser *p) {
   switch (tok.type) {
     case TOK_IDENT:
       uint16_t var = Parser_resolve_var(p, (Str){ &p->source[tok.start], tok.len });
+      assert(var);
       return Parser_create_expr(p, (AstNode){
         .type = AST_VAR,
         .start = tok.start,
@@ -141,6 +165,7 @@ uint16_t Parser_parse_postfix(Parser *p) {
       p->ast_out[left].next_sibling = right;
     } else if (op < AST_POST_INC) {
       ident = p->tokens[++p->pos];
+      // TODO: get rid of that ident wrapping, when you get to structs
       assert(ident.type == TOK_IDENT);
       right = Parser_create_ident(p, ident);
       p->ast_out[left].next_sibling = right;
@@ -297,11 +322,12 @@ uint16_t Parser_parse_statement(Parser *p) {
   switch (tok.type) {
     case TOK_IDENT:
       if (p->tokens[p->pos + 1].type != TOK_COLON) break;
-      p->pos++;
+      p->pos += 2;
+      uint16_t label = Parser_push_label(p, (Str){ &p->source[tok.start], tok.len });
       return Parser_create_expr(p, (AstNode){
         .type = AST_LABEL,
         .start = tok.start,
-        .value.len = tok.len,
+        .value.label = label,
       });
     case TOK_CASE:
       p->pos++;
@@ -444,12 +470,13 @@ uint16_t Parser_parse_statement(Parser *p) {
       p->pos++;
       Token ident = p->tokens[p->pos++];
       assert(ident.type = TOK_IDENT);
-      inner = Parser_create_ident(p, ident);
       assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
+      label = Parser_resolve_label(p, (Str){ &p->source[ident.start], ident.len });
+      assert(label);
       return Parser_create_expr(p, (AstNode){
         .type = AST_GOTO,
         .start = tok.start,
-        .value.first_child = inner,
+        .value.label = label,
       });
     case TOK_CONTINUE:
       p->pos++;
@@ -516,6 +543,7 @@ uint16_t parse(const char *source, const Token *tokens, AstNode *ast_out, Parser
     .ast_out = ast_out,
     .var_size = 1, // 0 means not found or invalid
     .ast_size = 1, // leave the first empty, to use zero for no children
+    .labels_size = 1, // same as above
   };
 
   assert(tokens[0].type == TOK_INT);
@@ -532,6 +560,7 @@ uint16_t parse(const char *source, const Token *tokens, AstNode *ast_out, Parser
 
 void print_ast(Parser *p, uint16_t node, int indent_level) {
   AstNode expr;
+  Str name;
   while (1) {
     AstNode expr = p->ast_out[node];
     for (int i = 0; i < indent_level * 2; ++i) putchar(' ');
@@ -542,12 +571,16 @@ void print_ast(Parser *p, uint16_t node, int indent_level) {
         break;
       case AST_DECL:
       case AST_VAR:
-        Str name = p->vars[expr.value.var];
+        name = p->vars[expr.value.var];
         printf("%.*s\n", name.len, name.ptr);
         break;
       case AST_IDENT:
-      case AST_LABEL:
         printf("%.*s\n", expr.value.len, &p->source[expr.start]);
+        break;
+      case AST_GOTO:
+      case AST_LABEL:
+        name = p->labels[expr.value.label];
+        printf("%.*s\n", name.len, name.ptr);
         break;
       default:
         putchar(10);
