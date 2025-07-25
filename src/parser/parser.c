@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "common.h"
 #include "tokens.h"
 #include "parser.h"
 #include <assert.h>
@@ -25,16 +26,16 @@ uint16_t Parser_resolve_label(Parser *p, Str name) {
   return 0;
 }
 
-VarId Parser_push_var(Parser *p, Str name) {
+VarId Parser_push_var(Parser *p, Var var) {
   assert(p->var_size < MAX_VARIABLES);
   uint16_t index = p->var_size++;
   // Check for variables in the scope with the same name
   Scope *scope = &p->scopes[p->scope];
   for (int i = scope->start; i < scope->start + scope->len; ++i) {
-    if (p->vars[i].name.len != name.len) continue;
-    assert(strncmp(p->vars[i].name.ptr, name.ptr, name.len));
+    if (p->vars[i].name.len != var.name.len) continue;
+    assert(strncmp(p->vars[i].name.ptr, var.name.ptr, var.name.len));
   }
-  p->vars[index] = (Var){ name };
+  p->vars[index] = var;
   scope->len++;
   return index;
 }
@@ -44,7 +45,9 @@ uint16_t Parser_resolve_var(Parser *p, Str name) {
     Scope scope = p->scopes[i];
     for (int i = scope.start + scope.len; i >= scope.start; --i) {
       if (name.len != p->vars[i].name.len) continue;
-      if (!strncmp(p->vars[i].name.ptr, name.ptr, name.len)) return i;
+      if (strncmp(p->vars[i].name.ptr, name.ptr, name.len)) continue;
+      p->vars[i].usage++;
+      return i;
     }
   }
   return 0;
@@ -107,14 +110,18 @@ void print_ast(Parser *p, uint16_t node, int indent_level) {
         printf("%ld\n", expr.value.i64);
         break;
       case AST_DECL:
-        int i = 0;
-        for (; i < (int)(expr.value.decl.var_count - 1); i++) {
-          name = p->vars[expr.value.decl.var_start + i].name;
-          printf("%.*s, ", name.len, name.ptr);
-        }
-        name = p->vars[expr.value.decl.var_start + i].name;
-        printf("%.*s", name.len, name.ptr);
         putchar(10);
+        int i = 0;
+        for (; i < (int)(expr.value.decl.var_count); i++) {
+          for (int i = 0; i < (indent_level + 1) * 2; ++i) putchar(' ');
+          Var var = p->vars[expr.value.decl.var_start + i];
+          printf("%s ", STORAGE_TO_STR[var.storage]);
+          if (var.flags & FLAG_CONST) printf("const ");
+          if (var.flags & FLAG_RESTRICT) printf("restrict ");
+          if (var.flags & FLAG_VOLATILE) printf("volatile ");
+          printf("%s %.*s, usage=%d\n", DATA_TYPE_TO_STR[var.type],
+              var.name.len, var.name.ptr, var.usage);
+        }
         if (!expr.value.first_child) break;
         print_ast(p, expr.value.first_child, indent_level + 1);
         break;

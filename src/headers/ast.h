@@ -78,6 +78,51 @@ typedef struct {
   AstValue value;
 } AstNode;
 
+typedef enum {
+  DATA_NONE,
+  DATA_VOID,
+  DATA_CHAR,
+  DATA_FLOAT,
+  DATA_DOUBLE,
+  DATA_BOOL,
+  DATA_COMPLEX,
+  DATA_UCHAR,
+  DATA_INT, // default
+  DATA_UINT,
+  DATA_SHORT_INT,
+  DATA_SHORT_UINT,
+  DATA_LONG_INT,
+  DATA_LONG_UINT,
+  DATA_LONG_LONG_INT,
+  DATA_LONG_LONG_UINT,
+  DATA_LONG_DOUBLE,
+
+  DATA_COUNT,
+} DataType;
+
+const char *DATA_TYPE_TO_STR[DATA_COUNT] = {
+  "none", "void", "char", "float", "double",
+  "bool", "complex", "uchar", "int", "uint",
+  "sint", "suint", "lint", "luint", "llint",
+  "lluint",
+};
+
+typedef enum {
+  // 4 options - 2 bits
+  STORAGE_EXTERN,
+  STORAGE_AUTO, // default
+  STORAGE_STATIC,
+  STORAGE_REGISTER,
+  // this is only used during parsing
+  STORAGE_TYPEDEF,
+  STORAGE_NONE,
+  STORAGE_COUNT,
+} StorageType;
+
+const char *STORAGE_TO_STR[STORAGE_COUNT] = {
+  "extern", "auto", "static", "register", "typedef", "none",
+};
+
 // TODO: reorder the tokens in the definition
 AstType tok2operation[TOK_IDENT] = {
   // For postfix expression

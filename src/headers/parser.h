@@ -20,21 +20,19 @@ typedef struct {
 } Scope;
 
 typedef enum {
-  TYPE_VOID,
-  TYPE_U8,
-  TYPE_I8,
-  TYPE_U16,
-  TYPE_I16,
-  TYPE_U32,
-  TYPE_I32,
-  TYPE_F32,
-  TYPE_F64,
-} ExprType;
+  FLAG_CONST = 1 << 0,
+  FLAG_RESTRICT = 1 << 1,
+  FLAG_VOLATILE = 1 << 2,
+  FLAG_INLINE = 1 << 3, // only functions
+} VarFlags;
 
 typedef struct {
   // TODO: change into start and len
   Str name;
-  // TODO: add usage field
+  StorageType storage;
+  DataType type;
+  VarFlags flags;
+  uint16_t usage;
 } Var;
 
 typedef struct {
@@ -66,7 +64,7 @@ AstId Parser_create_ident(Parser *p, Token source);
 
 LabelId Parser_push_label(Parser *p, Str name);
 LabelId Parser_resolve_label(Parser *p, Str name);
-VarId Parser_push_var(Parser *p, Str name);
+VarId Parser_push_var(Parser *p, Var var);
 VarId Parser_resolve_var(Parser *p, Str name);
 void Parser_push_scope(Parser *p);
 void Parser_pop_scope(Parser *p);

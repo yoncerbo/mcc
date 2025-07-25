@@ -39,16 +39,44 @@ OptionTokenType multiple_tokens[TOK_ARROW][2] = {
 
 // A very simple solution for now 
 // https://rgambord.github.io/c99-doc/sections/8/1/2/index.html
-// !IMPORTANT has to be the same order is in TokenType enum
 Str keywords[] = {
-  STR("auto"), STR("enum"), STR("restrict"), STR("unsigned"), STR("break"),
-  STR("extern"), STR("return"), STR("void"), STR("case"), STR("float"),
-  STR("short"), STR("volatile"), STR("char"), STR("for"), STR("signed"),
-  STR("while"), STR("const"), STR("goto"), STR("sizeof"), STR("_Bool"),
-  STR("continue"), STR("if"), STR("static"), STR("_Complex"), STR("default"),
-  STR("inline"), STR("struct"), STR("_Imaginary"), STR("do"), STR("int"),
-  STR("switch"), STR("double"), STR("long"), STR("typedef"), STR("else"),
-  STR("register"), STR("union"),
+  [TOK_AUTO - KEYWORDS_START] = STR("auto"),
+  [TOK_ENUM - KEYWORDS_START] = STR("enum"),
+  [TOK_RESTRICT - KEYWORDS_START] = STR("restrict"),
+  [TOK_UNSIGNED - KEYWORDS_START] = STR("unsigned"),
+  [TOK_BREAK - KEYWORDS_START] = STR("break"),
+  [TOK_EXTERN - KEYWORDS_START] = STR("extern"),
+  [TOK_RETURN - KEYWORDS_START] = STR("return"),
+  [TOK_VOID - KEYWORDS_START] = STR("void"),
+  [TOK_CASE - KEYWORDS_START] = STR("case"),
+  [TOK_FLOAT - KEYWORDS_START] = STR("float"),
+  [TOK_SHORT - KEYWORDS_START] = STR("short"),
+  [TOK_VOLATILE - KEYWORDS_START] = STR("volatile"),
+  [TOK_CHAR - KEYWORDS_START] = STR("char"),
+  [TOK_FOR - KEYWORDS_START] = STR("for"),
+  [TOK_SIGNED - KEYWORDS_START] = STR("signed"),
+  [TOK_WHILE - KEYWORDS_START] = STR("while"),
+  [TOK_CONST - KEYWORDS_START] = STR("const"),
+  [TOK_GOTO - KEYWORDS_START] = STR("goto"),
+  [TOK_SIZEOF - KEYWORDS_START] = STR("sizeof"),
+  [TOK_BOOL - KEYWORDS_START] = STR("_Bool"),
+  [TOK_CONTINUE - KEYWORDS_START] = STR("continue"),
+  [TOK_IF - KEYWORDS_START] = STR("if"),
+  [TOK_STATIC - KEYWORDS_START] = STR("static"),
+  [TOK_COMPLEX - KEYWORDS_START] = STR("_Complex"),
+  [TOK_DEFAULT - KEYWORDS_START] = STR("default"),
+  [TOK_INLINE - KEYWORDS_START] = STR("inline"),
+  [TOK_STRUCT - KEYWORDS_START] = STR("struct"),
+  [TOK_IMAGINARY - KEYWORDS_START] = STR("_Imaginary"),
+  [TOK_DO - KEYWORDS_START] = STR("do"),
+  [TOK_INT - KEYWORDS_START] = STR("int"),
+  [TOK_SWITCH - KEYWORDS_START] = STR("switch"),
+  [TOK_DOUBLE - KEYWORDS_START] = STR("double"),
+  [TOK_LONG - KEYWORDS_START] = STR("long"),
+  [TOK_TYPEDEF - KEYWORDS_START] = STR("typedef"),
+  [TOK_ELSE - KEYWORDS_START] = STR("else"),
+  [TOK_REGISTER - KEYWORDS_START] = STR("register"),
+  [TOK_UNION - KEYWORDS_START] = STR("union"),
 };
 const uint32_t KEYWORD_COUNT = sizeof(keywords) / sizeof(*keywords);
 
@@ -126,7 +154,7 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
       for (uint32_t i = 0; i < KEYWORD_COUNT; ++i) {
         if (keywords[i].len != len) continue;
         if (strncmp(keywords[i].ptr, start, len)) continue;
-        tt = TOK_AUTO + i;
+        tt = KEYWORDS_START + i;
         break;
       }
       assert(tokens_len < MAX_TOKENS);

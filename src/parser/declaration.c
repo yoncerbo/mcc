@@ -7,26 +7,6 @@
 #include <stdbool.h>
 
 typedef enum {
-  DATA_NONE,
-  DATA_VOID,
-  DATA_CHAR,
-  DATA_FLOAT,
-  DATA_DOUBLE,
-  DATA_BOOL,
-  DATA_COMPLEX,
-
-  DATA_UCHAR,
-  DATA_INT, // default
-  DATA_UINT,
-  DATA_SHORT_INT,
-  DATA_SHORT_UINT,
-  DATA_LONG_INT,
-  DATA_LONG_UINT,
-  DATA_LONG_LONG_INT,
-  DATA_LONG_LONG_UINT,
-} DataType;
-
-typedef enum {
   SIGN_NONE,
   SIGN_SIGNED,
   SIGN_UNSIGNED,
@@ -38,37 +18,25 @@ typedef enum {
   SIZE_LONG,
   SIZE_LONG_LONG,
 } SizeType;
-typedef enum {
-  // typedef is handled separately
-  // 4 options - 2 bits
-  STORAGE_EXTERN,
-  STORAGE_AUTO, // default
-  STORAGE_STATIC,
-  STORAGE_REGISTER,
-  // this is only used during parsing
-  STORAGE_TYPEDEF,
-  STORAGE_NONE,
-} StorageClassSpec;
 
-typedef enum {
-  FLAG_CONST = 1 << 0,
-  FLAG_RESTRICT = 1 << 1,
-  FLAG_VOLATILE = 1 << 2,
-  FLAG_INLINE = 1 << 3, // only functions
-} VarFlags;
+typedef struct {
+  DataType type;
+  StorageType storage;
+  VarFlags flags;
+} DeclSpecifier;
 
-uint16_t Parser_parse_declaration(Parser *p) {
+DeclSpecifier Parser_parse_declaration_specifier(Parser *p) {
+  Token tok;
   SizeType size = 0;
   SignType sign = 0;
   VarFlags flags = 0;
   DataType dt = DATA_NONE;
-  StorageClassSpec storage = STORAGE_NONE;
-  Token tok;
-  bool specifiers_encountered = false;
-  bool running = true;
-  do {
+  StorageType storage = STORAGE_NONE;
+
+  while(1) {
     tok = p->tokens[p->pos];
     p->pos++;
+    // TODO: reorder the tokens, then do compare and addition
     switch (tok.type) {
       // Storage class
       case TOK_TYPEDEF:
@@ -162,25 +130,49 @@ uint16_t Parser_parse_declaration(Parser *p) {
 
       default:
         p->pos--;
-        if (!specifiers_encountered) return Parser_parse_statement(p);
-        else running = false;
+        goto while_end;
     }
-    specifiers_encountered = true;
-  } while (running);
+  }
+while_end:
   if (storage == STORAGE_NONE) storage = STORAGE_AUTO;
   if (dt == DATA_NONE) dt = DATA_INT;
 
+  // https://en.wikipedia.org/wiki/C_data_types
+  // TODO: float or double _Complex
   // Check the type specifiers and modify the base type
-  if (dt == DATA_INT) {
-    dt = DATA_INT + size * 2;
-    dt += sign == SIGN_UNSIGNED;
-  } else if (dt == DATA_CHAR) {
-    assert(size == SIZE_NONE);
-    if (sign == SIGN_UNSIGNED) dt = DATA_UCHAR;
-  } else {
-    assert(size == SIZE_NONE);
-    assert(sign == SIGN_NONE);
+  switch (dt) {
+    case DATA_INT:
+      dt = DATA_INT + size * 2;
+      dt += sign == SIGN_UNSIGNED;
+      break;
+    case DATA_CHAR:
+      assert(size == SIZE_NONE);
+      if (sign == SIGN_UNSIGNED) dt = DATA_UCHAR;
+      break;
+    case DATA_DOUBLE:
+      if (size == SIZE_LONG) dt = DATA_LONG_DOUBLE;
+      else assert(size == SIZE_NONE);
+      assert(sign == SIGN_NONE);
+      break;
+    default:
+      assert(size == SIZE_NONE);
+      assert(sign == SIGN_NONE);
   }
+
+  return (DeclSpecifier){
+    .type = dt,
+    .storage = storage,
+    .flags = flags,
+  };
+}
+
+uint16_t Parser_parse_declaration(Parser *p) {
+  Token tok = p->tokens[p->pos];
+  TokenType next = p->tokens[p->pos].type;
+  if (tok.type < DECL_SPEC_START || (tok.type == TOK_IDENT &&
+        next < DECL_SPEC_START && next != TOK_IDENT)) return Parser_parse_statement(p);
+
+  DeclSpecifier spec = Parser_parse_declaration_specifier(p);
 
   uint16_t first = 0;
   uint16_t last = 0;
@@ -199,7 +191,13 @@ uint16_t Parser_parse_declaration(Parser *p) {
         .type = AST_EMPTY,
       });
     }
-    VarId var = Parser_push_var(p, name);
+    VarId var = Parser_push_var(p, (Var){
+      .name = name,
+      .usage = 0,
+      .storage = spec.storage,
+      .type = spec.type,
+      .flags = spec.flags,
+    });
     if (first) {
       p->ast_out[last].next_sibling = value;
       last = value; 
