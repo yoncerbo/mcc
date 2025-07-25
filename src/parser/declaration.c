@@ -30,6 +30,7 @@ DeclSpecifier Parser_parse_declaration_specifier(Parser *p) {
   SizeType size = 0;
   SignType sign = 0;
   VarFlags flags = 0;
+  VarFlags typedef_flags = 0;
   DataType dt = DATA_NONE;
   StorageType storage = STORAGE_NONE;
 
@@ -128,6 +129,19 @@ DeclSpecifier Parser_parse_declaration_specifier(Parser *p) {
         sign = SIGN_UNSIGNED;
         break;
 
+      // Typedef
+      case TOK_IDENT:
+        TokenType next = p->tokens[p->pos].type;
+        if (next < DECL_SPEC_START && next != TOK_IDENT) {
+          p->pos--;
+          goto while_end;
+        }
+        assert(dt == DATA_NONE);
+        uint16_t td = Parser_resolve_typedef(p, tok.start, tok.len);
+        typedef_flags |= p->typedefs[td].flags;
+        dt = p->typedefs[td].type;
+        if (next == TOK_IDENT) goto while_end;
+        else break;
       default:
         p->pos--;
         goto while_end;
@@ -136,6 +150,7 @@ DeclSpecifier Parser_parse_declaration_specifier(Parser *p) {
 while_end:
   if (storage == STORAGE_NONE) storage = STORAGE_AUTO;
   if (dt == DATA_NONE) dt = DATA_INT;
+  flags |= typedef_flags;
 
   // https://en.wikipedia.org/wiki/C_data_types
   // TODO: float or double _Complex
@@ -169,10 +184,25 @@ while_end:
 uint16_t Parser_parse_declaration(Parser *p) {
   Token tok = p->tokens[p->pos];
   TokenType next = p->tokens[p->pos].type;
-  if (tok.type < DECL_SPEC_START || (tok.type == TOK_IDENT &&
-        next < DECL_SPEC_START && next != TOK_IDENT)) return Parser_parse_statement(p);
+  // not a specifier and not a symbol, or
+  // symbol, but next is not a symbol or specifier
+  bool cond = tok.type != TOK_IDENT && tok.type < DECL_SPEC_START;
+  cond = cond || (tok.type == TOK_IDENT && next < DECL_SPEC_START && next != TOK_IDENT);
+  if (cond) return Parser_parse_statement(p);
 
   DeclSpecifier spec = Parser_parse_declaration_specifier(p);
+
+  if (spec.storage == STORAGE_TYPEDEF) {
+    do {
+      Token ident = p->tokens[p->pos++];
+      assert(ident.type == TOK_IDENT);
+      Typedef td = { ident.start, ident.len, spec.type, spec.flags };
+      Parser_push_typedef(p, td);
+    } while (p->tokens[p->pos++].type == TOK_COMMA);
+    assert(p->tokens[p->pos - 1].type == TOK_SEMICOLON);
+    return 0;
+    // Parser_parse_declaration(p);
+  }
 
   uint16_t first = 0;
   uint16_t last = 0;

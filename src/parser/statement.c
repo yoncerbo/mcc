@@ -6,6 +6,7 @@ uint16_t Parser_parse_block(Parser *p) {
   while(p->tokens[p->pos].type != TOK_RBRACE) {
     assert(p->tokens[p->pos].type);
     uint16_t elem = Parser_parse_declaration(p);
+    if (!elem) continue; // declaration migth not create any nodes
     if (!first) first = elem;
     else p->ast_out[last].next_sibling = elem;
     last = elem;

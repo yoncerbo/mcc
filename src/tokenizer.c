@@ -90,7 +90,10 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
 
     if (*ch == '/' && ch[1] == '/') {
       ch += 2;
-      while (*ch != '\n' || *ch != 0) ch++;
+      while (*ch != '\n') {
+        if (*ch == '\0') return;
+        ch++;
+      }
       ch++;
       continue;
     }

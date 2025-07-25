@@ -9,10 +9,12 @@
 #define MAX_VARIABLES 256
 #define MAX_SCOPES 64
 #define MAX_LABELS 64
+#define MAX_TYPEDEFS 128
 
 typedef uint16_t AstId;
 typedef uint16_t VarId;
 typedef uint16_t LabelId;
+typedef uint16_t TypedefId;
 
 typedef struct {
   VarId start;
@@ -36,6 +38,14 @@ typedef struct {
 } Var;
 
 typedef struct {
+  uint32_t start;
+  uint16_t len;
+  DataType type;
+  VarFlags flags;
+} Typedef;
+
+typedef struct {
+  Typedef typedefs[MAX_TYPEDEFS];
   Str labels[MAX_LABELS];
   Var vars[MAX_VARIABLES];
   Scope scopes[MAX_SCOPES];
@@ -46,6 +56,7 @@ typedef struct {
   uint16_t ast_size;
   uint16_t var_size;
   uint16_t labels_size;
+  uint16_t typedefs_size;
   uint8_t scope;
 } Parser;
 
@@ -68,5 +79,7 @@ VarId Parser_push_var(Parser *p, Var var);
 VarId Parser_resolve_var(Parser *p, Str name);
 void Parser_push_scope(Parser *p);
 void Parser_pop_scope(Parser *p);
+TypedefId Parser_push_typedef(Parser *p, Typedef td);
+TypedefId Parser_resolve_typedef(Parser *p, uint32_t start, uint16_t len);
 
 #endif
