@@ -107,8 +107,14 @@ void print_ast(Parser *p, uint16_t node, int indent_level) {
         printf("%ld\n", expr.value.i64);
         break;
       case AST_DECL:
-        name = p->vars[expr.value.decl.var].name;
-        printf("%.*s\n", name.len, name.ptr);
+        int i = 0;
+        for (; i < (int)(expr.value.decl.var_count - 1); i++) {
+          name = p->vars[expr.value.decl.var_start + i].name;
+          printf("%.*s, ", name.len, name.ptr);
+        }
+        name = p->vars[expr.value.decl.var_start + i].name;
+        printf("%.*s", name.len, name.ptr);
+        putchar(10);
         if (!expr.value.first_child) break;
         print_ast(p, expr.value.first_child, indent_level + 1);
         break;

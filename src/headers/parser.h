@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "ast.h"
+#include <stdint.h>
 
 #define MAX_AST_SIZE 512
 #define MAX_VARIABLES 256
@@ -18,8 +19,22 @@ typedef struct {
   uint16_t len;
 } Scope;
 
+typedef enum {
+  TYPE_VOID,
+  TYPE_U8,
+  TYPE_I8,
+  TYPE_U16,
+  TYPE_I16,
+  TYPE_U32,
+  TYPE_I32,
+  TYPE_F32,
+  TYPE_F64,
+} ExprType;
+
 typedef struct {
+  // TODO: change into start and len
   Str name;
+  // TODO: add usage field
 } Var;
 
 typedef struct {
@@ -40,6 +55,7 @@ AstId parse(const char *source, const Token *tokens, AstNode *ast_out, Parser *p
 void print_ast(Parser *p, uint16_t node, int indent_level);
 
 AstId Parser_parse_expression(Parser *p);
+AstId Parser_parse_assignment(Parser *p);
 AstId Parser_parse_unary(Parser *p);
 AstId Parser_parse_conditional(Parser *p, uint16_t left);
 AstId Parser_parse_declaration(Parser *p);

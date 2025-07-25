@@ -67,7 +67,7 @@ typedef union {
   uint16_t var;
   uint16_t label;
   struct AstValueDecl {
-    uint16_t value, var;
+    uint16_t first_child, var_start, var_count;
   } decl;
 } AstValue;
 

@@ -155,6 +155,7 @@ uint16_t Parser_parse_conditional(Parser *p, uint16_t left) {
   });
 }
 
+// TODO: combine assignments of the same type
 uint16_t Parser_parse_assignment(Parser *p) {
   uint16_t right;
   uint16_t left = Parser_parse_unary(p);

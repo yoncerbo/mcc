@@ -1,5 +1,5 @@
 
 int main(void) {
-  int x = 10;
-  return x;
+  unsigned long long int i = 10;
+  return i;
 }

@@ -208,7 +208,6 @@ uint16_t Parser_parse_statement(Parser *p) {
     default:
       break;
   }
-  printf("parsing\n");
   uint16_t expr = Parser_parse_expression(p);
   assert(p->tokens[p->pos++].type == TOK_SEMICOLON);
   return expr;
