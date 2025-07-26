@@ -78,6 +78,7 @@ typedef struct {
   AstValue value;
 } AstNode;
 
+// TODO: use one byte for data type and flags, where possible
 typedef enum {
   DATA_NONE,
   DATA_VOID,
@@ -86,8 +87,9 @@ typedef enum {
   DATA_DOUBLE,
   DATA_BOOL,
   DATA_COMPLEX,
+
   DATA_UCHAR,
-  DATA_INT, // default
+  DATA_INT,
   DATA_UINT,
   DATA_SHORT_INT,
   DATA_SHORT_UINT,
@@ -96,6 +98,9 @@ typedef enum {
   DATA_LONG_LONG_INT,
   DATA_LONG_LONG_UINT,
   DATA_LONG_DOUBLE,
+  DATA_STRUCT,
+  DATA_UNION,
+  DATA_ENUM,
 
   DATA_COUNT,
 } DataType;
@@ -104,7 +109,7 @@ const char *DATA_TYPE_TO_STR[DATA_COUNT] = {
   "none", "void", "char", "float", "double",
   "bool", "complex", "uchar", "int", "uint",
   "sint", "suint", "lint", "luint", "llint",
-  "lluint",
+  "lluint", "ldouble", "struct", "union", "enum",
 };
 
 typedef enum {

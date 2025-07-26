@@ -165,6 +165,9 @@ void tokenize(const char *source, Token tokens_out[MAX_TOKENS]) {
       continue;
     }
   }
+  // EOF token
+  assert(tokens_len < MAX_TOKENS);
+  tokens_out[tokens_len++] = (Token){0};
 }
 
 void print_tokens(const Token *tokens) {

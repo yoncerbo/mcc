@@ -23,7 +23,43 @@ typedef struct {
   DataType type;
   StorageType storage;
   VarFlags flags;
+  uint16_t struct_index;
 } DeclSpecifier;
+
+DeclSpecifier Parser_parse_declaration_specifier(Parser *p);
+
+void Parser_parse_struct_fileds(Parser *p, uint16_t struct_index) {
+  assert(struct_index != STRUCT_NOT_FOUND);
+  uint16_t start = p->field_bufer_size;
+  uint16_t len = 0;
+  while (p->tokens[p->pos].type != TOK_RBRACE) {
+    DeclSpecifier spec = Parser_parse_declaration_specifier(p);
+    // Disallowed in struct fields
+    assert(spec.storage == STORAGE_NONE);
+    assert(spec.flags ^ FLAG_INLINE);
+    do {
+      Token ident = p->tokens[p->pos++];
+      assert(ident.type == TOK_IDENT);
+      assert(p->field_bufer_size < FIELD_BUFFER_SIZE);
+      uint16_t index = p->field_bufer_size++;
+      p->field_buffer[index] = (Field){
+        .start = ident.start,
+        .len = ident.len,
+        .type = spec.type,
+        .struct_index = spec.struct_index,
+        .flags = spec.flags,
+      };
+      len++;
+    } while (p->tokens[p->pos++].type == TOK_COMMA);
+    assert(p->tokens[p->pos - 1].type == TOK_SEMICOLON);
+  }
+  p->pos++;
+  assert(p->fields_size + len < MAX_FIELDS);
+  memcpy(&p->fields[p->fields_size], &p->field_buffer[start], len * sizeof(Field));
+  p->structs[struct_index].fields_start = p->fields_size += len;
+  p->structs[struct_index].fields_len = len;
+}
+
 
 DeclSpecifier Parser_parse_declaration_specifier(Parser *p) {
   Token tok;
@@ -33,92 +69,85 @@ DeclSpecifier Parser_parse_declaration_specifier(Parser *p) {
   VarFlags typedef_flags = 0;
   DataType dt = DATA_NONE;
   StorageType storage = STORAGE_NONE;
+  uint16_t struct_index = 0;
 
   while(1) {
+    // TODO: I'm kinda dissatisfied with how this whole
+    // function works, but I'm just gonna leave it
+    // at least it takes less space than before
     tok = p->tokens[p->pos];
+    if (tok.type == TOK_IDENT) {
+      TokenType next = p->tokens[p->pos + 1].type;
+      if (next < DECL_SPEC_START && next != TOK_IDENT) break;
+      p->pos++;
+      assert(dt == DATA_NONE);
+      uint16_t td = Parser_resolve_typedef(p, tok.start, tok.len);
+      typedef_flags |= p->typedefs[td].flags;
+      dt = p->typedefs[td].type;
+      struct_index = p->typedefs[td].struct_index;
+      if (next == TOK_IDENT) break;
+      else continue;
+    }
+    if (tok.type < DECL_SPEC_START) break;
     p->pos++;
-    // TODO: reorder the tokens, then do compare and addition
+    if (tok.type <= TOK_TYPEDEF) {
+      // TODO: error if struct field definition
+      assert(storage == STORAGE_NONE);
+      storage = tok.type - TOK_EXTERN;
+      continue;
+    } else if (tok.type <= TOK_INLINE) {
+      VarFlags flag = 1 << (tok.type - TOK_CONST);
+      assert(flags ^ flag);
+      flags |= flag;
+      continue;
+    } else if (tok.type <= TOK_INT) {
+      assert(dt == DATA_NONE);
+      dt = tok.type - TOK_INLINE; // one lower, because of DATA_NONE
+      continue;
+    } else if (tok.type <= TOK_UNION) {
+      assert(dt == DATA_NONE);
+      dt = DATA_STRUCT + (tok.type - TOK_STRUCT);
+      StructType st = tok.type - TOK_STRUCT;
+      Token ident = p->tokens[p->pos++];
+      // Create anonymous
+      if (ident.type == TOK_LBRACE) {
+        p->pos++;
+        struct_index = Parser_push_struct(p, (Struct){ .type = st });
+        Parser_parse_struct_fileds(p, struct_index);
+        continue;
+      }
+      assert(ident.type = TOK_IDENT);
+      struct_index = Parser_resolve_struct(p, ident.start, ident.len);
+      // Initialize uninitialized
+      if (p->tokens[p->pos].type == TOK_LBRACE) {
+        p->pos++;
+        if (struct_index == STRUCT_NOT_FOUND) {
+          struct_index = Parser_push_struct(p, (Struct){
+            .start = ident.start,
+            .len = ident.len,
+            .type = st,
+          });
+        } else assert(p->structs[struct_index].type == st);
+        Parser_parse_struct_fileds(p, struct_index);
+        continue;
+      }
+      // Create uninitialized
+      if (struct_index == STRUCT_NOT_FOUND) {
+        struct_index = Parser_push_struct(p, (Struct){
+          .start = ident.start,
+          .len = ident.len,
+          .type = st | STRUCT_UNINIT,
+        });
+        continue;
+      }
+      // Check if it's adequate type, if initialized
+      assert((p->structs[struct_index].type & 3) == st);
+      continue;
+    }
     switch (tok.type) {
-      // Storage class
-      case TOK_TYPEDEF:
-        assert(storage == STORAGE_NONE);
-        storage = STORAGE_TYPEDEF;
-        break;
-      case TOK_EXTERN:
-        assert(storage == STORAGE_NONE); // TODO: turn those into errors or warnings
-        storage = STORAGE_EXTERN;
-        break;
-      case TOK_STATIC:
-        assert(storage == STORAGE_NONE);
-        storage = STORAGE_STATIC;
-        break;
-      case TOK_AUTO:
-        assert(storage == STORAGE_NONE);
-        storage = STORAGE_AUTO;
-        break;
-      case TOK_REGISTER:
-        assert(storage == STORAGE_NONE);
-        storage = STORAGE_REGISTER;
-        break;
-
-      // Type qualifier
-      case TOK_CONST:
-        assert(flags ^ FLAG_CONST);
-        flags |= FLAG_CONST;
-        break;
-      case TOK_RESTRICT:
-        assert(flags ^ FLAG_RESTRICT);
-        flags |= FLAG_RESTRICT;
-        break;
-      case TOK_VOLATILE:
-        assert(flags ^ FLAG_VOLATILE);
-        flags |= FLAG_VOLATILE;
-        break;
-      // Function specifier
-      case TOK_INLINE:
-        assert(flags ^ FLAG_INLINE);
-        flags |= FLAG_INLINE;
-        break;
-
-      // Base type specifier
-      case TOK_VOID:
-        assert(dt == DATA_NONE);
-        dt = DATA_VOID;
-        break;
-      case TOK_CHAR:
-        assert(dt == DATA_NONE);
-        dt = DATA_CHAR;
-        break;
-      case TOK_INT:
-        assert(dt == DATA_NONE);
-        dt = DATA_INT;
-        break;
-      case TOK_FLOAT:
-        assert(dt == DATA_NONE);
-        dt = DATA_FLOAT;
-        break;
-      case TOK_DOUBLE:
-        assert(dt == DATA_NONE);
-        dt = DATA_DOUBLE;
-        break;
-      case TOK_BOOL:
-        assert(dt == DATA_NONE);
-        dt = DATA_BOOL;
-        break;
-      case TOK_COMPLEX:
-        assert(dt == DATA_NONE);
-        dt = DATA_COMPLEX;
-        break;
-      // TODO: struct, union, enum, typedef name
-
       case TOK_SHORT:
         assert(size == SIZE_NONE);
         size = SIZE_SHORT;
-        break;
-      case TOK_LONG:
-        if (size == SIZE_NONE) size = SIZE_LONG;
-        else if (size == SIZE_LONG) size = SIZE_LONG_LONG;
-        else assert(0);
         break;
       case TOK_SIGNED:
         assert(sign == SIGN_NONE);
@@ -128,33 +157,20 @@ DeclSpecifier Parser_parse_declaration_specifier(Parser *p) {
         assert(sign == SIGN_NONE);
         sign = SIGN_UNSIGNED;
         break;
-
-      // Typedef
-      case TOK_IDENT:
-        TokenType next = p->tokens[p->pos].type;
-        if (next < DECL_SPEC_START && next != TOK_IDENT) {
-          p->pos--;
-          goto while_end;
-        }
-        assert(dt == DATA_NONE);
-        uint16_t td = Parser_resolve_typedef(p, tok.start, tok.len);
-        typedef_flags |= p->typedefs[td].flags;
-        dt = p->typedefs[td].type;
-        if (next == TOK_IDENT) goto while_end;
-        else break;
+      case TOK_LONG:
+        if (size == SIZE_NONE) size = SIZE_LONG;
+        else if (size == SIZE_LONG) size = SIZE_LONG_LONG;
+        else assert(0);
+        break;
       default:
-        p->pos--;
-        goto while_end;
+        assert(0);
     }
   }
-while_end:
-  if (storage == STORAGE_NONE) storage = STORAGE_AUTO;
   if (dt == DATA_NONE) dt = DATA_INT;
   flags |= typedef_flags;
 
   // https://en.wikipedia.org/wiki/C_data_types
   // TODO: float or double _Complex
-  // Check the type specifiers and modify the base type
   switch (dt) {
     case DATA_INT:
       dt = DATA_INT + size * 2;
@@ -178,6 +194,7 @@ while_end:
     .type = dt,
     .storage = storage,
     .flags = flags,
+    .struct_index = struct_index,
   };
 }
 
@@ -191,12 +208,13 @@ uint16_t Parser_parse_declaration(Parser *p) {
   if (cond) return Parser_parse_statement(p);
 
   DeclSpecifier spec = Parser_parse_declaration_specifier(p);
+  if (spec.storage == STORAGE_NONE) spec.storage = STORAGE_AUTO;
 
   if (spec.storage == STORAGE_TYPEDEF) {
     do {
       Token ident = p->tokens[p->pos++];
       assert(ident.type == TOK_IDENT);
-      Typedef td = { ident.start, ident.len, spec.type, spec.flags };
+      Typedef td = { ident.start, ident.len, spec.struct_index, spec.type, spec.flags };
       Parser_push_typedef(p, td);
     } while (p->tokens[p->pos++].type == TOK_COMMA);
     assert(p->tokens[p->pos - 1].type == TOK_SEMICOLON);
@@ -210,6 +228,7 @@ uint16_t Parser_parse_declaration(Parser *p) {
   uint16_t var_count = 0;
   do {
     Token ident = p->tokens[p->pos++];
+    if (!first && ident.type == TOK_SEMICOLON) return 0;
     assert(ident.type == TOK_IDENT);
     Str name = (Str){ &p->source[ident.start], ident.len };
     uint16_t value = 0;

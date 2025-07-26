@@ -6,8 +6,30 @@
 #include <stdint.h>
 #include <string.h>
 
+uint16_t Parser_push_struct(Parser *p, Struct s) {
+  assert(p->structs_size < MAX_STRUCTS);
+  if (s.len != 0) {
+    for (int i = 1; i < p->structs_size; ++i) {
+      if (p->structs[i].len != s.len) continue;
+      assert(strncmp(&p->source[p->structs[i].start], &p->source[s.start], s.len));
+    }
+  }
+  uint16_t index = p->structs_size++;
+  p->structs[index] = s;
+  return index;
+}
+
+// returns index or STRUCT_NOT_FOUND
+uint16_t Parser_resolve_struct(Parser *p, uint32_t start, uint16_t len) {
+  for (uint16_t i = 0; i < p->structs_size; ++i) {
+    if (len != p->structs[i].len) continue;
+    if (!strncmp(&p->source[p->structs[i].start], &p->source[start], len)) return i;
+  }
+  return STRUCT_NOT_FOUND;
+}
+
 uint16_t Parser_push_typedef(Parser *p, Typedef td) {
-  assert(p->typedefs_size < MAX_VARIABLES);
+  assert(p->typedefs_size < MAX_TYPEDEFS);
   for (int i = 1; i < p->typedefs_size; ++i) {
     if (p->typedefs[i].len != td.len) continue;
     assert(strncmp(&p->source[p->typedefs[i].start], &p->source[td.start], td.len));
@@ -27,7 +49,7 @@ uint16_t Parser_resolve_typedef(Parser *p, uint32_t start, uint16_t len) {
 
 // note: lable scope is per function
 uint16_t Parser_push_label(Parser *p, Str name) {
-  assert(p->labels_size < MAX_VARIABLES);
+  assert(p->labels_size < MAX_LABELS);
   for (int i = 1; i < p->labels_size; ++i) {
     if (p->labels[i].len != name.len) continue;
     assert(strncmp(p->labels[i].ptr, name.ptr, name.len));
